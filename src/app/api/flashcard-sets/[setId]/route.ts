@@ -8,7 +8,7 @@ import Profile from '@/models/Profile';
 
 export async function GET(
   req: Request,
-  context: { params: { setId: string } }
+  context: { params: Promise<{ setId: string }> }
 ) {
   const session = await getServerSession(authOptions);
 
@@ -17,7 +17,7 @@ export async function GET(
   }
 
   try {
-    const { setId } = context.params;
+    const { setId } = await context.params;
     await dbConnect();
 
     // First, find the flashcard set by its ID
