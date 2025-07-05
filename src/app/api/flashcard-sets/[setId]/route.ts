@@ -1,18 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { NextRequest, NextResponse } from 'next/server';
+// import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import FlashcardSet from '@/models/FlashcardSet';
 import Profile from '@/models/Profile';
 
-interface RouteContext {
-  params: Promise<{ setId: string }>;
-}
+// interface RouteContext {
+//   params: Promise<{ setId: string }>;
+// }
 
 export async function GET(
-  req: NextRequest,
-  { params }: RouteContext
+  { params }: { params: {setId: string }}
 ) {
   const session = await getServerSession(authOptions);
 
