@@ -7,7 +7,7 @@ import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import bcrypt from 'bcryptjs';
 
-export const authOptions: AuthOptions = {
+const authOptions: AuthOptions = {
   // Use MongoDB to store user accounts, sessions, etc.
   adapter: MongoDBAdapter(dbConnect().then(mongoose => mongoose.connection.getClient())),
 
@@ -90,4 +90,4 @@ export const authOptions: AuthOptions = {
 
 const handler = NextAuth(authOptions);
 
-export { handler as GET, handler as POST };
+export { handler as GET, handler as POST, authOptions };
