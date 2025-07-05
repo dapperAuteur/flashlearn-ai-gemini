@@ -4,14 +4,15 @@ import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import dbConnect from '@/lib/mongodb';
 import Profile from '@/models/Profile';
-import FlashcardSet, { IFlashcardSet } from '@/models/FlashcardSet';
+import FlashcardSet, { IFlashcardSet, IFlashcard } from '@/models/FlashcardSet';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Dashboard - Flashcard AI Pro',
-  description: 'Manage your flashcard sets.',
+  description: 'Manage your flashcard sets and review due cards.',
 };
 
+// Fetches all of the user's flashcard sets
 async function getFlashcardSets(userId: string) {
     await dbConnect();
     const userProfiles = await Profile.find({ user: userId });
@@ -20,9 +21,31 @@ async function getFlashcardSets(userId: string) {
     const profileIds = userProfiles.map(p => p._id);
     const sets = await FlashcardSet.find({ profile: { $in: profileIds } }).sort({ createdAt: -1 });
     
-    // Convert to plain objects to pass from Server to Client Component
     return JSON.parse(JSON.stringify(sets)) as IFlashcardSet[];
 }
+
+// Fetches only the cards that are due for review
+async function getDueCards(userId: string) {
+    await dbConnect();
+    const userProfiles = await Profile.find({ user: userId });
+    if (userProfiles.length === 0) return [];
+
+    const profileIds = userProfiles.map(p => p._id);
+    const sets = await FlashcardSet.find({ profile: { $in: profileIds } });
+
+    const now = new Date();
+    const dueCards: (IFlashcard & { setId: string, setTitle: string })[] = [];
+
+    for (const set of sets) {
+        for (const card of set.flashcards) {
+            if (new Date(card.mlData.nextReviewDate) <= now) {
+                dueCards.push({ ...JSON.parse(JSON.stringify(card)), setId: set._id.toString(), setTitle: set.title });
+            }
+        }
+    }
+    return dueCards;
+}
+
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -31,10 +54,34 @@ export default async function DashboardPage() {
     redirect('/auth/signin?callbackUrl=/dashboard');
   }
 
-  const flashcardSets = await getFlashcardSets(session.user.id);
+  // Fetch both all sets and due cards in parallel
+  const [flashcardSets, dueCards] = await Promise.all([
+    getFlashcardSets(session.user.id),
+    getDueCards(session.user.id)
+  ]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+      
+      {/* Due Cards Section */}
+      {dueCards.length > 0 && (
+        <div className="mb-12 p-6 rounded-lg bg-indigo-600/10 dark:bg-indigo-500/20">
+          <h2 className="text-2xl font-bold text-indigo-800 dark:text-indigo-200">Review Time!</h2>
+          <p className="mt-2 text-lg text-indigo-700 dark:text-indigo-300">
+            You have <span className="font-extrabold">{dueCards.length}</span> card{dueCards.length > 1 ? 's' : ''} due for review.
+          </p>
+          <div className="mt-4">
+            <Link 
+              href="/study/due"
+              className="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            >
+              Start Review Session
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* All Sets Section */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
           My Flashcard Sets

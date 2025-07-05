@@ -11,6 +11,7 @@
   "dependencies": {
     "@auth/mongodb-adapter": "^3.10.0",
     "@google/generative-ai": "^0.24.1",
+    "@tensorflow/tfjs": "^4.17.0",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.2",
     "mongodb": "^6.17.0",
