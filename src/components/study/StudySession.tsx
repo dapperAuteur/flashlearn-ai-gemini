@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -6,7 +7,7 @@ import { useRouter } from 'next/navigation';
 
 // The component now accepts a more generic list of cards.
 // Each card object must be augmented with its parent set's ID.
-type AugmentedFlashcard = IFlashcard & { setId: string };
+type AugmentedFlashcard = IFlashcard & { setId: string; _id: string };
 
 type Props = {
   initialCards: AugmentedFlashcard[];
@@ -107,7 +108,9 @@ export const StudySession = ({ initialCards, sessionTitle }: Props) => {
       `}</style>
       
       <p className="text-lg font-medium text-gray-700 dark:text-gray-300">
-        Card {currentCardIndex + 1} of {cards.length}
+        {sessionTitle}
+      </p>
+      <p className="text-lg font-medium text-gray-700 dark:text-gray-300">Card {currentCardIndex + 1} of {cards.length}
       </p>
 
       <div

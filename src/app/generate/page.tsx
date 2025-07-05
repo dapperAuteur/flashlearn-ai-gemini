@@ -25,7 +25,7 @@ export default async function GeneratePage() {
                 AI Flashcard Generator
             </h1>
             <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
-                Let AI do the heavy lifting. Just enter a topic, and we'll create a set of flashcards for you in seconds.
+                Let AI do the heavy lifting. Just enter a topic, and we&apos;ll create a set of flashcards for you in seconds.
             </p>
         </div>
         <div className="mt-16">

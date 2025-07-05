@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import NextAuth from 'next-auth';
 import { AuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
@@ -20,6 +21,7 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials, req) {
+        console.log('req :>> ', req);
         if (!credentials?.email || !credentials?.password) {
           throw new Error('Please enter an email and password');
         }
@@ -63,17 +65,17 @@ export const authOptions: AuthOptions = {
   callbacks: {
     // This callback is called whenever a JWT is created or updated.
     async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
+      if (user && typeof user.id === 'string') {
+        token.id = (user as any).id;
+        token.role = (user as any).role;
       }
       return token;
     },
     // This callback is called whenever a session is checked.
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as 'Student' | 'Admin';
+        (session.user as any).id = token.id as string;
+        (session.user as any).role = token.role as 'Student' | 'Admin';
       }
       return session;
     },
