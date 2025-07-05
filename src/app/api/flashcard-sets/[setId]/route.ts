@@ -7,13 +7,13 @@ import dbConnect from '@/lib/mongodb';
 import FlashcardSet from '@/models/FlashcardSet';
 import Profile from '@/models/Profile';
 
-// interface RouteContext {
-//   params: Promise<{ setId: string }>;
-// }
+type RouteContext = {
+  params: { setId: string };
+};
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { setId: string } }
+  { params }: RouteContext
 ) {
   const session = await getServerSession(authOptions);
 
