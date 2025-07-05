@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -7,7 +8,7 @@ import Profile from '@/models/Profile';
 
 export async function GET(
   req: Request,
-  { params }: { params: { setId: string } }
+  context: { params: { setId: string } }
 ) {
   const session = await getServerSession(authOptions);
 
@@ -16,7 +17,7 @@ export async function GET(
   }
 
   try {
-    const { setId } = params;
+    const { setId } = context.params;
     await dbConnect();
 
     // First, find the flashcard set by its ID
