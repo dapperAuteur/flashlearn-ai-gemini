@@ -13,7 +13,7 @@ type RouteContext = {
 
 export async function GET(
   _request: NextRequest,
-  { params }: RouteContext
+  context: RouteContext
 ) {
   const session = await getServerSession(authOptions);
 
@@ -22,7 +22,7 @@ export async function GET(
   }
 
   try {
-    const { setId } = params;
+    const { setId } = context.params;
     await dbConnect();
 
     // First, find the flashcard set by its ID
