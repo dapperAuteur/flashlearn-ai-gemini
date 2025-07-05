@@ -1,6 +1,6 @@
 import { getServerSession } from 'next-auth/next';
 import Link from 'next/link';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { SignOutButton } from '@/components/auth/SignOutButton';
 
 export const Header = async () => {

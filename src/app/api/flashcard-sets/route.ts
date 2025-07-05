@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import FlashcardSet from '@/models/FlashcardSet';
 import Profile from '@/models/Profile';
@@ -10,7 +10,7 @@ import User from '@/models/User';
 export async function GET() {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user?.id) {
+  if (!session?.user || !session.user?.id) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
@@ -18,7 +18,7 @@ export async function GET() {
     await dbConnect();
 
     // Find all profiles belonging to the user
-    const userProfiles = await Profile.find({ user: session.user.id });
+    const userProfiles = await Profile.find({ user: session.user?.id });
     const profileIds = userProfiles.map(p => p._id);
 
     // Find all sets linked to those profiles
@@ -37,7 +37,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user?.id) {
+  if (!session?.user || !session.user?.id) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
@@ -51,17 +51,17 @@ export async function POST(req: Request) {
     await dbConnect();
 
     // Find the user's first profile, or create a default one if none exists.
-    let userProfile = await Profile.findOne({ user: session.user.id });
+    let userProfile = await Profile.findOne({ user: session.user?.id });
 
     if (!userProfile) {
       userProfile = new Profile({
-        user: session.user.id,
+        user: session.user?.id,
         profileName: 'Default Profile', // Create a default profile name
       });
       await userProfile.save();
 
       // Also link this new profile back to the user document
-      await User.findByIdAndUpdate(session.user.id, {
+      await User.findByIdAndUpdate(session.user?.id, {
         $push: { profiles: userProfile._id },
       });
     }
