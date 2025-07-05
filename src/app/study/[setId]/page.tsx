@@ -56,12 +56,18 @@ export default async function StudyPage({ params }: { params: { setId: string } 
         );
     }
 
+    // Augment cards with the setId before passing them to the component
+    const augmentedCards = flashcardSet.flashcards.map(card => ({
+        ...card,
+        setId: flashcardSet._id.toString(),
+    }));
+
     return (
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
             <h1 className="text-3xl font-bold tracking-tight text-center mb-8 text-gray-900 dark:text-white">
                 {flashcardSet.title}
             </h1>
-            <StudySession flashcardSet={flashcardSet} />
+            <StudySession initialCards={augmentedCards} sessionTitle={flashcardSet.title} />
         </div>
     );
 }

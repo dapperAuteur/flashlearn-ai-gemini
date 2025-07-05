@@ -1,149 +1,149 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { IFlashcardSet } from '@/models/FlashcardSet';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { IFlashcard } from '@/models/FlashcardSet';
+import { useRouter } from 'next/navigation';
+
+// The component now accepts a more generic list of cards.
+// Each card object must be augmented with its parent set's ID.
+type AugmentedFlashcard = IFlashcard & { setId: string };
 
 type Props = {
-  flashcardSet: IFlashcardSet;
+  initialCards: AugmentedFlashcard[];
+  sessionTitle: string;
 };
 
-export const StudySession = ({ flashcardSet }: Props) => {
+export const StudySession = ({ initialCards, sessionTitle }: Props) => {
+  const router = useRouter();
+  const [cards, setCards] = useState<AugmentedFlashcard[]>(initialCards);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentCard = useMemo(() => {
-    return flashcardSet.flashcards[currentCardIndex];
-  }, [currentCardIndex, flashcardSet.flashcards]);
+    return cards[currentCardIndex];
+  }, [currentCardIndex, cards]);
 
-  const goToNextCard = useCallback(() => {
-    // Ensure the next card starts on its front face
-    if (isFlipped) {
-      setIsFlipped(false);
-      // Add a small delay to allow the card to flip back before changing content
-      setTimeout(() => {
-        setCurrentCardIndex((prevIndex) => (prevIndex + 1) % flashcardSet.flashcards.length);
-      }, 250);
-    } else {
-      setCurrentCardIndex((prevIndex) => (prevIndex + 1) % flashcardSet.flashcards.length);
+  const handleReview = useCallback(async (quality: number) => {
+    if (isSubmitting || !currentCard) return;
+    setIsSubmitting(true);
+
+    const goToNextCard = () => {
+      if (currentCardIndex >= cards.length - 1) {
+        // End of session, navigate back to dashboard
+        router.push('/dashboard');
+        return;
+      }
+
+      if (isFlipped) {
+        setIsFlipped(false);
+        setTimeout(() => {
+          setCurrentCardIndex((prevIndex) => prevIndex + 1);
+        }, 250);
+      } else {
+        setCurrentCardIndex((prevIndex) => prevIndex + 1);
+      }
+    };
+
+    try {
+      await fetch('/api/flashcards/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          setId: currentCard.setId,
+          cardId: currentCard._id,
+          quality,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to submit review:", error);
+    } finally {
+      setIsSubmitting(false);
+      goToNextCard();
     }
-  }, [isFlipped, flashcardSet.flashcards.length]);
+  }, [isSubmitting, currentCard, cards, currentCardIndex, isFlipped, router]);
 
-  const goToPreviousCard = useCallback(() => {
-    // Ensure the next card starts on its front face
-    if (isFlipped) {
-      setIsFlipped(false);
-      // Add a small delay to allow the card to flip back before changing content
-      setTimeout(() => {
-        if (currentCardIndex === 0) {
-          setCurrentCardIndex(flashcardSet.flashcards.length - 1);
-        } else {
-          setCurrentCardIndex((prevIndex) => (prevIndex - 1) % flashcardSet.flashcards.length);
-        }
-      }, 250);
-    } else {
-      if (currentCardIndex === 0) {
-          setCurrentCardIndex(flashcardSet.flashcards.length - 1);
-        } else {
-          setCurrentCardIndex((prevIndex) => (prevIndex - 1) % flashcardSet.flashcards.length);
-        }
-    }
-  }, [isFlipped, flashcardSet.flashcards.length, currentCardIndex]);
-
-  const flipCard = useCallback(() => {
-    setIsFlipped((prev) => !prev);
-  }, []);
-
+  
+  
+  // Keyboard shortcut handler
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'Space') {
-        event.preventDefault(); // Prevent default browser action (scrolling)
-        flipCard();
-      } else if (event.code === 'ArrowRight') {
-        goToNextCard();
-      } else if (event.code === 'ArrowLeft') {
-        goToPreviousCard();
+        event.preventDefault();
+        setIsFlipped((prev) => !prev);
+      }
+      if (event.code === 'ArrowLeft') {
+        handleReview(1); // Wrong
+      }
+      if (event.code === 'ArrowRight') {
+        handleReview(5); // Right
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [flipCard, goToNextCard, goToPreviousCard]);
+  }, [handleReview]);
+
+
+  if (!currentCard) {
+    return (
+        <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Session Complete!</h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">Great work! You&apos;ve reviewed all the cards.</p>
+            <button onClick={() => router.push('/dashboard')} className="mt-4 rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                Back to Dashboard
+            </button>
+        </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center space-y-8">
-      {/* Add a style block for the 3D transform utilities */}
       <style>{`
-        .perspective {
-          perspective: 1000px;
-        }
-        .transform-style-3d {
-          transform-style: preserve-3d;
-        }
+        .perspective { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
       `}</style>
       
-      {/* Progress Indicator */}
       <p className="text-lg font-medium text-gray-700 dark:text-gray-300">
-        Card {currentCardIndex + 1} of {flashcardSet.flashcards.length}
+        Card {currentCardIndex + 1} of {cards.length}
       </p>
 
-      {/* Flippable Card */}
       <div
-        className="w-full max-w-2xl h-80 perspective"
-        onClick={flipCard}
+        className="w-full max-w-2xl h-80 perspective cursor-pointer"
+        onClick={() => setIsFlipped(!isFlipped)}
       >
         <div
           className={`relative w-full h-full transform-style-3d transition-transform duration-500 ${isFlipped ? 'rotate-y-180' : ''}`}
         >
-          {/* Front of the card */}
           <div className="absolute w-full h-full backface-hidden flex items-center justify-center rounded-lg bg-white dark:bg-gray-800 shadow-lg p-6">
             <p className="text-2xl text-center text-gray-900 dark:text-white">{currentCard.front}</p>
           </div>
-          {/* Back of the card */}
           <div className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center rounded-lg bg-white dark:bg-gray-700 shadow-lg p-6">
             <p className="text-xl text-center text-gray-900 dark:text-white">{currentCard.back}</p>
           </div>
         </div>
       </div>
 
-      {/* Action Buttons */}
       <div className="flex w-full max-w-2xl justify-around">
         <button
-          onClick={goToPreviousCard}
-          className="rounded-full bg-green-500/20 text-green-700 dark:text-green-400 px-8 py-4 text-lg font-bold hover:bg-green-500/30 transition-colors"
+          onClick={() => handleReview(1)} // Quality 1 for "Wrong"
+          disabled={isSubmitting}
+          className="rounded-full bg-red-500/20 text-red-700 dark:text-red-400 px-8 py-4 text-lg font-bold hover:bg-red-500/30 transition-colors disabled:opacity-50"
         >
-          Left
+          {isSubmitting ? '...' : 'Wrong'}
         </button>
         <button
-          onClick={goToNextCard}
-          className="rounded-full bg-red-500/20 text-red-700 dark:text-red-400 px-8 py-4 text-lg font-bold hover:bg-red-500/30 transition-colors"
+          onClick={() => handleReview(5)} // Quality 5 for "Right"
+          disabled={isSubmitting}
+          className="rounded-full bg-green-500/20 text-green-700 dark:text-green-400 px-8 py-4 text-lg font-bold hover:bg-green-500/30 transition-colors disabled:opacity-50"
         >
-          Wrong
-        </button>
-        <button
-          onClick={goToNextCard}
-          className="rounded-full bg-green-500/20 text-green-700 dark:text-green-400 px-8 py-4 text-lg font-bold hover:bg-green-500/30 transition-colors"
-        >
-          Right
+          {isSubmitting ? '...' : 'Right'}
         </button>
       </div>
-
-      {/* Keyboard Shortcuts Hint */}
-      <div className="pt-4 text-sm text-center text-gray-500 dark:text-gray-400">
-        <p>
-          <strong>Pro-tip:{' '}
-            <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">&larr;</kbd>{' '}
-          to go to the previous card.
-          </strong> Use{' '}
-          <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">
-            Space
-          </kbd>{' '}
-          to flip and{' '}
-          <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">&rarr;</kbd>{' '}
-          to go to the next card.
-        </p>
+       <div className="text-sm text-gray-500 dark:text-gray-400">
+        Use <kbd className="font-mono p-1 bg-gray-200 dark:bg-gray-700 rounded-md">Spacebar</kbd> to flip, and <kbd className="font-mono p-1 bg-gray-200 dark:bg-gray-700 rounded-md">←</kbd> <kbd className="font-mono p-1 bg-gray-200 dark:bg-gray-700 rounded-md">→</kbd> arrows to answer.
       </div>
     </div>
   );
