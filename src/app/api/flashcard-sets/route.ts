@@ -6,6 +6,34 @@ import FlashcardSet from '@/models/FlashcardSet';
 import Profile from '@/models/Profile';
 import User from '@/models/User';
 
+// GET handler to fetch all flashcard sets for a user
+export async function GET() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    return new NextResponse('Unauthorized', { status: 401 });
+  }
+
+  try {
+    await dbConnect();
+
+    // Find all profiles belonging to the user
+    const userProfiles = await Profile.find({ user: session.user.id });
+    const profileIds = userProfiles.map(p => p._id);
+
+    // Find all sets linked to those profiles
+    const sets = await FlashcardSet.find({ profile: { $in: profileIds } }).sort({ createdAt: -1 });
+
+    return NextResponse.json(sets);
+
+  } catch (error) {
+    console.error('GET_FLASHCARD_SETS_ERROR', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+
+
+// POST handler to create a new flashcard set
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
 
