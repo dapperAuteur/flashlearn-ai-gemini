@@ -1,14 +1,18 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import FlashcardSet from '@/models/FlashcardSet';
 import Profile from '@/models/Profile';
 
+interface RouteContext {
+  params: Promise<{ setId: string }>;
+}
+
 export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ setId: string }> }
+  req: NextRequest,
+  { params }: RouteContext
 ) {
   const session = await getServerSession(authOptions);
 
@@ -17,7 +21,6 @@ export async function GET(
   }
 
   try {
-    // Need to await the params since they're now a Promise
     const { setId } = await params;
     await dbConnect();
 
