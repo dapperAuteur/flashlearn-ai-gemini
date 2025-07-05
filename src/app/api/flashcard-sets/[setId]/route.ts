@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // import { NextRequest, NextResponse } from 'next/server';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
@@ -12,7 +12,8 @@ import Profile from '@/models/Profile';
 // }
 
 export async function GET(
-  { params }: { params: {setId: string }}
+  _request: NextRequest,
+  { params }: { params: { setId: string } }
 ) {
   const session = await getServerSession(authOptions);
 
@@ -21,7 +22,7 @@ export async function GET(
   }
 
   try {
-    const { setId } = await params;
+    const { setId } = params;
     await dbConnect();
 
     // First, find the flashcard set by its ID
