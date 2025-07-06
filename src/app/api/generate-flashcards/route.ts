@@ -1,26 +1,31 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { verifyIdToken } from '@/lib/firebase/firebase-admin';
+import { FLASHCARD_MAX, FLASHCARD_MIN, MODEL } from '@/lib/constants';
+
+//}
 
 // Initialize the Google Generative AI client with the API key
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(req: Request) {
   try {
+    // 1. Authenticate the user
+    const decodedToken = await verifyIdToken(request.headers);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { prompt } = await req.json();
 
     if (!prompt) {
       return new NextResponse('A prompt is required', { status: 400 });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-    console.log('model :>> ', model);
-
     // This is a carefully crafted prompt to ensure the AI returns a valid JSON array.
     const fullPrompt = `
-      Based on the following topic, generate a set of 5 to 10 flashcards.
+      Based on the following topic, generate a set of ${FLASHCARD_MIN} to ${FLASHCARD_MAX} flashcards.
       The topic is: "${prompt}".
-      Please respond with ONLY a valid JSON array of objects. Each object should represent a flashcard
-      and have two properties: "front" (the question or term) and "back" (the answer or definition).
+      IMPORTANT: Use only information from vetted, peer-reviewed, and trustworthy sources to generate the content for these flashcards.
+      Please respond with ONLY a valid JSON array of objects. Each object should represent a flashcard and have two properties: "front" (the question or term) and "back" (the answer or definition).
       Do not include any text, explanation, or markdown formatting before or after the JSON array.
 
       Example format:
@@ -36,7 +41,7 @@ export async function POST(req: Request) {
       ]
     `;
 
-    const result = await model.generateContent(fullPrompt);
+    const result = await MODEL.generateContent(fullPrompt);
     const response = await result.response;
     const text = await response.text();
 
@@ -46,7 +51,7 @@ export async function POST(req: Request) {
     // Attempt to parse the JSON response from the AI
     const flashcards = JSON.parse(jsonText);
 
-    return NextResponse.json({ flashcards });
+    return NextResponse.json(flashcards, { status: 200 });
 
   } catch (error) {
     console.error('FLASHCARD_GENERATION_ERROR', error);

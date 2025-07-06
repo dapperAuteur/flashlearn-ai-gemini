@@ -1,14 +1,27 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase/firebase';
 
 export const SignUpForm = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const router = useRouter();
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    zipCode: '',
+    phoneNumber: '',
+  });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,36 +29,47 @@ export const SignUpForm = () => {
     setError(null);
 
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      // Step 1: Create the user in Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+      const user = userCredential.user;
+
+      // Step 2: Update the Firebase Auth profile with the user's name
+      await updateProfile(user, {
+        displayName: `${formData.firstName} ${formData.lastName}`,
       });
 
-      if (!response.ok) {
-        const data = await response.text();
-        setError(data || 'Something went wrong.');
-        setIsLoading(false);
-      } else {
-        // Automatically sign in the user after successful registration
-        const signInResult = await signIn('credentials', {
-          redirect: true,
-          callbackUrl: '/',
-          email,
-          password,
-        });
-        // If signIn returns an error, it means the redirect failed.
+      // Step 3: Create a new user document in Firestore
+      // The document ID will be the user's UID from Firebase Auth
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        zipCode: formData.zipCode,
+        phoneNumber: formData.phoneNumber,
+        createdAt: new Date(),
+        // Initialize other fields as needed
+        subscriptionTier: 'Free',
+      });
 
-        if (signInResult?.error) {
-          setError('Could not sign you in. Please try signing in manually.');
-          setIsLoading(false);
-        }
-        // On success, NextAuth handles the redirect.
+      // Step 4: Redirect to the dashboard on successful signup
+      router.push('/dashboard');
+
+    } catch (err: any) {
+      // Handle Firebase-specific errors
+      if (err.code === 'auth/email-already-in-use') {
+        setError('This email address is already in use.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('The password is too weak. It must be at least 6 characters long.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+        console.error(err);
       }
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -57,54 +81,34 @@ export const SignUpForm = () => {
           <p>{error}</p>
         </div>
       )}
-      <div>
-        <label
-          htmlFor="email"
-          className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300"
-        >
-          Email address
-        </label>
-        <div className="mt-2">
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white dark:bg-gray-800 text-gray-900 dark:text-white ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-indigo-600 dark:focus:ring-indigo-500"
-          />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+        <div>
+          <label htmlFor="firstName" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">First Name *</label>
+          <input id="firstName" name="firstName" type="text" required value={formData.firstName} onChange={handleChange} className="mt-2 block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white dark:bg-gray-800 text-gray-900 dark:text-white ring-gray-300 dark:ring-gray-700" />
+        </div>
+        <div>
+          <label htmlFor="lastName" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">Last Name *</label>
+          <input id="lastName" name="lastName" type="text" required value={formData.lastName} onChange={handleChange} className="mt-2 block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white dark:bg-gray-800 text-gray-900 dark:text-white ring-gray-300 dark:ring-gray-700" />
+        </div>
+        <div className="md:col-span-2">
+          <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">Email address *</label>
+          <input id="email" name="email" type="email" autoComplete="email" required value={formData.email} onChange={handleChange} className="mt-2 block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white dark:bg-gray-800 text-gray-900 dark:text-white ring-gray-300 dark:ring-gray-700" />
+        </div>
+        <div className="md:col-span-2">
+          <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">Password *</label>
+          <input id="password" name="password" type="password" autoComplete="new-password" required value={formData.password} onChange={handleChange} className="mt-2 block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white dark:bg-gray-800 text-gray-900 dark:text-white ring-gray-300 dark:ring-gray-700" />
+        </div>
+        <div>
+          <label htmlFor="zipCode" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">Zip Code *</label>
+          <input id="zipCode" name="zipCode" type="text" autoComplete="postal-code" required value={formData.zipCode} onChange={handleChange} className="mt-2 block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white dark:bg-gray-800 text-gray-900 dark:text-white ring-gray-300 dark:ring-gray-700" />
+        </div>
+        <div>
+          <label htmlFor="phoneNumber" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300">Phone Number</label>
+          <input id="phoneNumber" name="phoneNumber" type="tel" autoComplete="tel" value={formData.phoneNumber} onChange={handleChange} className="mt-2 block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white dark:bg-gray-800 text-gray-900 dark:text-white ring-gray-300 dark:ring-gray-700" />
         </div>
       </div>
-
-      <div>
-        <label
-          htmlFor="password"
-          className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300"
-        >
-          Password
-        </label>
-        <div className="mt-2">
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="block w-full rounded-md border-0 py-1.5 shadow-sm ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white dark:bg-gray-800 text-gray-900 dark:text-white ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-indigo-600 dark:focus:ring-indigo-500"
-          />
-        </div>
-      </div>
-
-      <div>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+      <div className="pt-4">
+        <button type="submit" disabled={isLoading} className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50">
           {isLoading ? 'Creating Account...' : 'Create Account'}
         </button>
       </div>

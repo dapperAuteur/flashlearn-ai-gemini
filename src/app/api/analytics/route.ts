@@ -1,29 +1,90 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/mongodb';
-import StudyAnalytics from '@/models/StudyAnalytics';
-import Profile from '@/models/Profile';
+import { adminDb, verifyIdToken } from '@/lib/firebase/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 });
-
+// POST: Create or update study analytics after a session
+export async function POST(request: Request) {
   try {
-    await dbConnect();
+    const decodedToken = await verifyIdToken(request.headers);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = decodedToken.uid;
 
-    const userProfiles = await Profile.find({ user: session.user.id });
-    const profileIds = userProfiles.map(p => p._id);
+    const body = await request.json();
+    const { setId, sessionResults, sessionTime } = body;
 
-    // Find all analytics documents for the user's profiles and populate the set title
-    const analytics = await StudyAnalytics.find({ profile: { $in: profileIds } })
-      .populate('set', 'title') // This joins the 'set' field and retrieves the 'title'
-      .sort({ updatedAt: -1 });
+    if (!setId || !sessionResults || !Array.isArray(sessionResults) || typeof sessionTime !== 'number') {
+      return NextResponse.json({ error: 'Missing or invalid required fields' }, { status: 400 });
+    }
 
-    return NextResponse.json(analytics);
+    // Use a composite ID for the analytics document to ensure one per user/set
+    const analyticsDocRef = adminDb.collection('study-analytics').doc(`${userId}_${setId}`);
+    const analyticsDoc = await analyticsDocRef.get();
+
+    // Use a transaction to safely read and write data
+    await adminDb.runTransaction(async (transaction) => {
+      const docData = analyticsDoc.exists ? (await transaction.get(analyticsDocRef)).data() : null;
+
+      const newCardPerformance = docData?.cardPerformance || {};
+      let totalCorrect = 0;
+      let totalIncorrect = 0;
+
+      // Update performance for each card in the session
+      sessionResults.forEach(result => {
+        const { cardId, correct } = result;
+        const cardStats = newCardPerformance[cardId] || { correctCount: 0, incorrectCount: 0 };
+        if (correct) {
+          cardStats.correctCount += 1;
+          totalCorrect += 1;
+        } else {
+          cardStats.incorrectCount += 1;
+          totalIncorrect += 1;
+        }
+        newCardPerformance[cardId] = cardStats;
+      });
+      
+      const currentTotalCorrect = docData?.setPerformance?.totalCorrect || 0;
+      const currentTotalIncorrect = docData?.setPerformance?.totalIncorrect || 0;
+      
+      const updatedTotalCorrect = currentTotalCorrect + totalCorrect;
+      const updatedTotalIncorrect = currentTotalIncorrect + totalIncorrect;
+      const newAverageScore = (updatedTotalCorrect / (updatedTotalCorrect + updatedTotalIncorrect)) * 100;
+
+      if (analyticsDoc.exists) {
+        // Document exists, update it
+        transaction.update(analyticsDocRef, {
+          cardPerformance: newCardPerformance,
+          'setPerformance.totalStudySessions': FieldValue.increment(1),
+          'setPerformance.totalTimeStudied': FieldValue.increment(sessionTime),
+          'setPerformance.totalCorrect': FieldValue.increment(totalCorrect),
+          'setPerformance.totalIncorrect': FieldValue.increment(totalIncorrect),
+          'setPerformance.averageScore': newAverageScore,
+           updatedAt: FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Document doesn't exist, create it
+        transaction.set(analyticsDocRef, {
+          userId,
+          setId,
+          cardPerformance: newCardPerformance,
+          setPerformance: {
+            totalStudySessions: 1,
+            totalTimeStudied: sessionTime,
+            totalCorrect: totalCorrect,
+            totalIncorrect: totalIncorrect,
+            averageScore: newAverageScore,
+          },
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+    });
+
+    return NextResponse.json({ message: 'Analytics updated successfully' }, { status: 200 });
 
   } catch (error) {
-    console.error('GET_ANALYTICS_ERROR', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    console.error('Error updating study analytics:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

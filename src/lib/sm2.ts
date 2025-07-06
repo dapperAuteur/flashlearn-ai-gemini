@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { IFlashcard } from "@/models/FlashcardSet";
+import { IFlashcard } from "@/type";
 
 // Interface for the input data required by the algorithm
 interface SM2Input {
