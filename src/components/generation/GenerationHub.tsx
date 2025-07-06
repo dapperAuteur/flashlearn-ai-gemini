@@ -7,6 +7,7 @@ import { YouTubeForm } from '@/components/forms/YouTubeForm';
 import { PdfForm } from '@/components/forms/PdfForm';
 import { AudioForm } from '@/components/forms/AudioForm';
 import { VideoForm } from '../forms/VideoForm';
+import { TextForm } from '../forms/TextForm'}
 
 
 
@@ -22,6 +23,7 @@ const tabs = [
   { name: 'From PDF', component: PdfForm },
   { name: 'From Audio', component: AudioForm },
   { name: 'From Video', component: VideoForm },
+  { name: 'From Text', component: TextForm },
 ];
 
 function classNames(...classes: string[]) {
