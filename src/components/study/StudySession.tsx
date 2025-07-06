@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -17,21 +18,33 @@ export const StudySession = ({ initialCards, sessionTitle }: Props) => {
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // State to manage the feedback animation
-  const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
+  // State to track the score
+  const [score, setScore] = useState({ correct: 0, incorrect: 0 });
+  // State to manage the card's background color for feedback
+  const [feedbackColor, setFeedbackColor] = useState('');
 
   const currentCard = useMemo(() => {
     return cards[currentCardIndex];
   }, [currentCardIndex, cards]);
 
   const progressPercentage = useMemo(() => {
-    return ((currentCardIndex + 1) / cards.length) * 100;
+    // Progress should be based on cards reviewed, not the next card index
+    const reviewedCount = currentCardIndex;
+    return (reviewedCount / cards.length) * 100;
   }, [currentCardIndex, cards.length]);
 
   const handleReview = useCallback(async (quality: number) => {
     if (isSubmitting || !currentCard) return;
     setIsSubmitting(true);
-    setFeedback(quality >= 3 ? 'correct' : 'incorrect');
+
+    // Set score and feedback color
+    if (quality >= 3) {
+      setScore(prev => ({ ...prev, correct: prev.correct + 1 }));
+      setFeedbackColor('bg-green-100 dark:bg-green-900/60');
+    } else {
+      setScore(prev => ({ ...prev, incorrect: prev.incorrect + 1 }));
+      setFeedbackColor('bg-red-100 dark:bg-red-900/60');
+    }
 
     try {
       await fetch('/api/flashcards/review', {
@@ -46,10 +59,10 @@ export const StudySession = ({ initialCards, sessionTitle }: Props) => {
     } catch (error) {
       console.error("Failed to submit review:", error);
     } finally {
-      // Wait for animation to finish before moving to the next card
+      // Wait for the user to see the feedback color
       setTimeout(() => {
         setIsSubmitting(false);
-        setFeedback(null);
+        setFeedbackColor(''); // Reset color
         goToNextCard();
       }, 700);
     }
@@ -57,7 +70,8 @@ export const StudySession = ({ initialCards, sessionTitle }: Props) => {
 
   const goToNextCard = () => {
     if (currentCardIndex >= cards.length - 1) {
-      router.push('/dashboard');
+      // Show the final card's result before finishing
+       setTimeout(() => router.push('/dashboard'), 500);
       return;
     }
     if (isFlipped) {
@@ -85,16 +99,13 @@ export const StudySession = ({ initialCards, sessionTitle }: Props) => {
     return (
         <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Session Complete!</h2>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">Great work! You've reviewed all the cards.</p>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">Final Score: {score.correct} / {cards.length}</p>
             <button onClick={() => router.push('/dashboard')} className="mt-4 rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
                 Back to Dashboard
             </button>
         </div>
     );
   }
-
-  // Determine animation class based on feedback state
-  const feedbackAnimationClass = feedback === 'correct' ? 'animate-flashCorrect' : feedback === 'incorrect' ? 'animate-flashIncorrect' : '';
 
   return (
     <div className="flex flex-col items-center space-y-6">
@@ -106,11 +117,11 @@ export const StudySession = ({ initialCards, sessionTitle }: Props) => {
       {/* Progress Bar and Counter */}
       <div className="w-full max-w-2xl">
         <div className="flex justify-between mb-1">
-            <span className="text-base font-medium text-indigo-700 dark:text-white">Progress</span>
+            <span className="text-base font-medium text-indigo-700 dark:text-white">Score: {score.correct} / {score.correct + score.incorrect}</span>
             <span className="text-sm font-medium text-indigo-700 dark:text-white">Card {currentCardIndex + 1} of {cards.length}</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-            <div className="bg-indigo-600 h-2.5 rounded-full" style={{ width: `${progressPercentage}%` }}></div>
+            <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progressPercentage}%` }}></div>
         </div>
       </div>
 
@@ -120,12 +131,14 @@ export const StudySession = ({ initialCards, sessionTitle }: Props) => {
         onClick={() => setIsFlipped(!isFlipped)}
       >
         <div
-          className={`relative w-full h-full transform-style-3d transition-transform duration-500 ${isFlipped ? 'rotate-y-180' : ''} ${feedbackAnimationClass}`}
+          className={`relative w-full h-full transform-style-3d transition-transform duration-500 ${isFlipped ? 'rotate-y-180' : ''}`}
         >
-          <div className={`absolute w-full h-full backface-hidden flex items-center justify-center rounded-lg bg-white dark:bg-gray-800 shadow-lg p-6 transition-all duration-300 ${isFlipped ? 'shadow-indigo-500/50' : ''}`}>
+          {/* Front of the card */}
+          <div className={`absolute w-full h-full backface-hidden flex items-center justify-center rounded-lg shadow-lg p-6 transition-colors duration-300 ${feedbackColor || 'bg-white dark:bg-gray-800'}`}>
             <p className="text-2xl text-center text-gray-900 dark:text-white">{currentCard.front}</p>
           </div>
-          <div className="absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center rounded-lg bg-white dark:bg-gray-700 shadow-lg p-6">
+          {/* Back of the card */}
+          <div className={`absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center rounded-lg shadow-lg p-6 transition-colors duration-300 ${feedbackColor || 'bg-white dark:bg-gray-700'}`}>
             <p className="text-xl text-center text-gray-900 dark:text-white">{currentCard.back}</p>
           </div>
         </div>
