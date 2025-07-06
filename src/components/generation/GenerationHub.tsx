@@ -7,7 +7,7 @@ import { YouTubeForm } from '@/components/forms/YouTubeForm';
 import { PdfForm } from '@/components/forms/PdfForm';
 import { AudioForm } from '@/components/forms/AudioForm';
 import { VideoForm } from '../forms/VideoForm';
-import { TextForm } from '../forms/TextForm'}
+import { TextForm } from '../forms/TextForm';
 
 
 
