@@ -17,11 +17,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full bg-gray-50">
-      <body className={`h-full ${inter.className}`}>
+    <html lang="en" className="h-full dark">
+      {/* The body is now a flex container that takes up the full height */}
+      <body className={`flex min-h-full flex-col bg-gray-50 dark:bg-gray-900 ${inter.className}`}>
         <NextAuthProvider>
           <Header />
-          <main>{children}</main>
+          {/* The main content area will now grow to fill any remaining space */}
+          <main className="flex-grow">
+            {children}
+          </main>
         </NextAuthProvider>
       </body>
     </html>

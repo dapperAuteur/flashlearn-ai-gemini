@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import dbConnect from '@/lib/mongodb';
 import Profile from '@/models/Profile';
-import FlashcardSet, { IFlashcardSet, IFlashcard } from '@/models/FlashcardSet';
+import FlashcardSet, { IFlashcardSet } from '@/models/FlashcardSet';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
@@ -24,29 +24,6 @@ async function getFlashcardSets(userId: string) {
     return JSON.parse(JSON.stringify(sets)) as IFlashcardSet[];
 }
 
-// Fetches only the cards that are due for review
-async function getDueCards(userId: string) {
-    await dbConnect();
-    const userProfiles = await Profile.find({ user: userId });
-    if (userProfiles.length === 0) return [];
-
-    const profileIds = userProfiles.map(p => p._id);
-    const sets = await FlashcardSet.find({ profile: { $in: profileIds } });
-
-    const now = new Date();
-    const dueCards: (IFlashcard & { setId: string, setTitle: string })[] = [];
-
-    for (const set of sets) {
-        for (const card of set.flashcards) {
-            if (new Date(card.mlData.nextReviewDate) <= now) {
-                dueCards.push({ ...JSON.parse(JSON.stringify(card)), setId: set._id.toString(), setTitle: set.title });
-            }
-        }
-    }
-    return dueCards;
-}
-
-
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
 
@@ -54,33 +31,18 @@ export default async function DashboardPage() {
     redirect('/auth/signin?callbackUrl=/dashboard');
   }
 
-  // Fetch both all sets and due cards in parallel
-  const [flashcardSets, dueCards] = await Promise.all([
-    getFlashcardSets(session.user.id),
-    getDueCards(session.user.id)
-  ]);
+  const flashcardSets = await getFlashcardSets(session.user.id);
+
+  // Calculate due cards count for each set on the server
+  const now = new Date();
+  const setsWithDueCount = flashcardSets.map(set => {
+    const dueCount = set.flashcards.filter(card => new Date(card.mlData.nextReviewDate) <= now).length;
+    return { ...set, dueCount };
+  });
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
       
-      {/* Due Cards Section */}
-      {dueCards.length > 0 && (
-        <div className="mb-12 p-6 rounded-lg bg-indigo-600/10 dark:bg-indigo-500/20">
-          <h2 className="text-2xl font-bold text-indigo-800 dark:text-indigo-200">Review Time!</h2>
-          <p className="mt-2 text-lg text-indigo-700 dark:text-indigo-300">
-            You have <span className="font-extrabold">{dueCards.length}</span> card{dueCards.length > 1 ? 's' : ''} due for review.
-          </p>
-          <div className="mt-4">
-            <Link 
-              href="/study/due"
-              className="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-            >
-              Start Review Session
-            </Link>
-          </div>
-        </div>
-      )}
-
       {/* All Sets Section */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
@@ -102,9 +64,9 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {flashcardSets.length > 0 ? (
+      {setsWithDueCount.length > 0 ? (
         <ul role="list" className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {flashcardSets.map((set) => (
+          {setsWithDueCount.map((set) => (
             <li key={set._id} className="col-span-1 divide-y divide-gray-200 dark:divide-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow">
               <div className="flex w-full items-center justify-between space-x-6 p-6">
                 <div className="flex-1 truncate">
@@ -112,16 +74,27 @@ export default async function DashboardPage() {
                     <h3 className="truncate text-sm font-medium text-gray-900 dark:text-white">{set.title}</h3>
                   </div>
                   <p className="mt-1 truncate text-sm text-gray-500 dark:text-gray-400">{set.flashcards.length} cards</p>
+                  {set.dueCount > 0 && (
+                     <p className="mt-1 text-sm font-bold text-indigo-600 dark:text-indigo-400">{set.dueCount} due for review</p>
+                  )}
                 </div>
               </div>
               <div>
                 <div className="-mt-px flex divide-x divide-gray-200 dark:divide-gray-700">
                   <div className="flex w-0 flex-1">
                     <a
-                      href={`/study/${set._id}`}
-                      className="relative -mr-px inline-flex w-0 flex-1 items-center justify-center gap-x-3 rounded-bl-lg border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                      href={set.dueCount > 0 ? `/study/${set._id}/review` : `/study/${set._id}`}
+                      className={`relative -mr-px inline-flex w-0 flex-1 items-center justify-center gap-x-3 rounded-bl-lg border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 ${set.dueCount > 0 ? 'text-indigo-600 dark:text-indigo-400' : ''}`}
                     >
-                      Study
+                      {set.dueCount > 0 ? 'Review Due' : 'Study All'}
+                    </a>
+                  </div>
+                   <div className="-ml-px flex w-0 flex-1">
+                    <a
+                      href={`/sets/${set._id}/preview`}
+                      className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-3 border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      Preview
                     </a>
                   </div>
                   <div className="-ml-px flex w-0 flex-1">
