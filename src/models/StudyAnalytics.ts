@@ -12,19 +12,18 @@ interface ISetPerformance {
   totalStudySessions: number;
   totalTimeStudied: number; // in seconds
   averageScore: number;
-  lastSessionStarted: Date; // New field to track sessions
+  lastSessionStarted: Date;
 }
 
 // Interface for the main StudyAnalytics document
 export interface IStudyAnalytics extends Document {
   profile: Schema.Types.ObjectId;
-  set: Schema.Types.ObjectId & { title: string }; // Populate set title
+  set: Schema.Types.ObjectId & { title: string };
   cardPerformance: ICardPerformance[];
   setPerformance: ISetPerformance;
-  // This will store historical performance data for charts
   performanceHistory: {
     date: Date;
-    accuracy: number; // Percentage
+    accuracy: number;
   }[];
 }
 
@@ -46,9 +45,9 @@ const StudyAnalyticsSchema = new Schema<IStudyAnalytics>({
   }],
   setPerformance: {
     totalStudySessions: { type: Number, default: 0 },
-    totalTimeStudied: { type: Number, default: 0 }, // Not yet implemented, but here for future use
+    totalTimeStudied: { type: Number, default: 0 }, // This will now be updated
     averageScore: { type: Number, default: 0 },
-    lastSessionStarted: { type: Date, default: () => new Date(0) }, // Default to epoch
+    lastSessionStarted: { type: Date, default: () => new Date(0) },
   },
   performanceHistory: [{
       date: { type: Date, required: true },
