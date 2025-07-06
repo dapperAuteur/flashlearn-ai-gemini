@@ -5,13 +5,13 @@ import { useState } from 'react';
 // import { useAuth } from '@/components/providers/AuthProvider';
 // import { db } from '@/lib/firebase';
 // import { collection, addDoc, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { PromptForm } from '@/components/forms/PromptForm';
-import { YouTubeForm } from '@/components/forms/YouTubeForm';
-import { PdfForm } from '@/components/forms/PdfForm';
-import { AudioForm } from '@/components/forms/AudioForm';
-import { VideoForm } from '../forms/VideoForm';
-import { TextForm } from '../forms/TextForm';
-import { ImageForm } from '../forms/ImageForm';
+import { PromptForm } from '@/components/generation/PromptForm';
+import { YouTubeForm } from '@/components/generation/YouTubeForm';
+import { PdfForm } from '@/components/generation/PdfForm';
+import { AudioForm } from '@/components/generation/AudioForm';
+import { VideoForm } from './VideoForm';
+import { TextForm } from './TextForm';
+import { ImageForm } from './ImageForm';
 
 
 const tabs = [

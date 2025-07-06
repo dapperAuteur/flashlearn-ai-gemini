@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { FlashcardResult } from '@/components/flashcards/FlashcardResult';
-import { IFlashcard } from '@/models/FlashcardSet';
+import { IFlashcard } from '@/types';
 import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB} from '@/lib/constants';
 
 export const VideoForm = () => {

@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { IFlashcardSet, IFlashcard } from '@/models/FlashcardSet';
+import { IFlashcardSet, IFlashcard } from '@/types';
 import Link from 'next/link';
 
 type Props = {
