@@ -44,7 +44,7 @@ export const YouTubeForm = () => {
             </form>
             {isLoading && <p className="text-center text-gray-500 dark:text-gray-400">Fetching transcript and generating, please wait...</p>}
             {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md" role="alert"><p>{error}</p></div>}
-            <FlashcardResult flashcards={flashcards} initialTitle="Flashcards from YouTube" onSaveSuccess={() => { setFlashcards([]); setVideoUrl(''); }} />
+            <FlashcardResult flashcards={flashcards} initialTitle="Flashcards from YouTube" source="YouTube" onSaveSuccess={() => { setFlashcards([]); setVideoUrl(''); }} />
         </div>
     );
 };

@@ -4,7 +4,14 @@
 import { useState } from 'react';
 import { IFlashcard } from '@/models/FlashcardSet';
 
-export const FlashcardResult = ({ flashcards, initialTitle, onSaveSuccess }: { flashcards: IFlashcard[], initialTitle: string, onSaveSuccess: () => void }) => {
+type Props = {
+    flashcards: IFlashcard[],
+    initialTitle: string,
+    source: 'Prompt' | 'PDF' | 'YouTube';
+    onSaveSuccess: () => void
+}
+
+export const FlashcardResult = ({ flashcards, initialTitle, source, onSaveSuccess }: Props) => {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -20,7 +27,7 @@ export const FlashcardResult = ({ flashcards, initialTitle, onSaveSuccess }: { f
             const response = await fetch('/api/flashcard-sets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: setTitle, flashcards, source: 'YouTube' }),
+                body: JSON.stringify({ title: setTitle, flashcards, source }),
             });
             if (!response.ok) throw new Error(await response.text() || 'Failed to save the set.');
             setSuccessMessage('Flashcard set saved successfully!');

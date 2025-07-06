@@ -44,7 +44,7 @@ export const PromptForm = () => {
             </form>
             {isLoading && <p className="text-center text-gray-500 dark:text-gray-400">Generating, please wait...</p>}
             {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md" role="alert"><p>{error}</p></div>}
-            <FlashcardResult flashcards={flashcards} initialTitle={prompt} onSaveSuccess={() => { setFlashcards([]); setPrompt(''); }} />
+            <FlashcardResult flashcards={flashcards} initialTitle={prompt} source="Prompt" onSaveSuccess={() => { setFlashcards([]); setPrompt(''); }} />
         </div>
     );
 };
