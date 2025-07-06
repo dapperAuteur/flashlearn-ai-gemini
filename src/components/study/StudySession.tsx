@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { IFlashcard } from '@/models/FlashcardSet';
+import { IFlashcard } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -88,7 +88,7 @@ export const StudySession = ({ initialCards, sessionTitle }: Props) => {
          },
         body: JSON.stringify({
           setId: currentCard.setId,
-          cardId: currentCard._id,
+          cardId: currentCard.id,
           quality,
         }),
       });

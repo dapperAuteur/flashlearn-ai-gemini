@@ -1,57 +1,32 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { redirect } from 'next/navigation';
-import type { Metadata } from 'next';
-import Profile from '@/models/Profile';
-import FlashcardSet, { IFlashcardSet } from '@/models/FlashcardSet';
+'use client'; // This page now needs to be a client component to use the useAuth hook
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { DashboardClient } from '@/components/dashboard/DashboardClient';
-import { getAuth } from 'firebase-admin/auth';
-import { adminApp } from '@/lib/firebase-admin'; // We will create this
+import { useAuth } from '@/components/providers/AuthProvider';
 
-export const metadata: Metadata = {
-  title: 'Dashboard - Flashcard AI Pro',
-  description: 'Manage your flashcard sets and review due cards.',
-};
+export default function DashboardPage() {
+    const { user, isLoading } = useAuth();
+    const router = useRouter();
 
-// This server-side function checks for an authenticated user
-// Note: This requires a Firebase Admin setup for server-side auth checks
-async function checkAuth(cookie: string | undefined) {
-    if (!cookie) return null;
-    try {
-        const decodedToken = await getAuth(adminApp).verifySessionCookie(cookie, true);
-        return decodedToken;
-    } catch (error) {
+    useEffect(() => {
+        // Redirect if the user is not logged in after auth check is complete
+        if (!isLoading && !user) {
+            router.push('/auth/signin');
+        }
+    }, [user, isLoading, router]);
+
+    // Show a loading state while we wait for the auth check
+    if (isLoading) {
+        return <div className="text-center py-12">Authenticating...</div>
+    }
+
+    // If there's no user, we'll be redirecting, so render nothing.
+    if (!user) {
         return null;
     }
-}
-
-// This server-side function fetches all necessary data for the dashboard
-async function getDashboardData(userId: string) {
-    await dbConnect();
-    const userProfiles = await Profile.find({ user: userId });
-    if (userProfiles.length === 0) return [];
-    
-    const profileIds = userProfiles.map(p => p._id);
-    const sets = await FlashcardSet.find({ profile: { $in: profileIds } }).sort({ createdAt: -1 });
-    
-    const now = new Date();
-    const setsWithDueCount = sets.map(set => {
-        const dueCount = set.flashcards.filter(card => new Date(card.mlData.nextReviewDate) <= now).length;
-        return { ...JSON.parse(JSON.stringify(set)), dueCount };
-    });
-
-    return setsWithDueCount;
-}
-
-export default async function DashboardPage({ cookies }: any) {
-    // This is a placeholder for server-side auth with Firebase
-    // For a fully client-rendered approach, this page can be simpler.
-    // const session = await checkAuth(cookies().get('session')?.value);
-    // if (!session) {
-    //     redirect('/auth/signin');
-    // }
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
@@ -71,12 +46,6 @@ export default async function DashboardPage({ cookies }: any) {
                 className="text-sm font-semibold leading-6 text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
             >
                 Performance
-            </Link>
-             <Link 
-                href="/analytics/scores"
-                className="text-sm font-semibold leading-6 text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
-            >
-                Score Report
             </Link>
             <Link 
                 href="/generate"

@@ -12,7 +12,12 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase for either client or server-side
+// Add a check to ensure all required config values are present
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  throw new Error('Firebase config is missing. Make sure you have a .env.local file with all the required NEXT_PUBLIC_FIREBASE_ variables and have restarted your development server.');
+}
+
+// Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 const auth = getAuth(app);
@@ -20,4 +25,3 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 export { app, auth, db, storage };
-

@@ -3,12 +3,13 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import Image from 'next/image';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/components/providers/AuthProvider';
 import html2canvas from 'html2canvas';
+import Image from 'next/image';
 
 // Define types for our leaderboard data
-type UserRank = { userId: string; name: string; rank: number; daily: any; weekly: any; monthly: any; overall: any; };
+type UserStats = { totalCorrect: number; averageAccuracy: number; };
+type UserRank = { userId: string; name: string; rank: number; daily: any; weekly: any; monthly: any; image: string; overall: any; };
 type LeaderboardData = { top10: UserRank[]; currentUser?: UserRank; };
 type LeaderboardCategory = { daily: LeaderboardData; weekly: LeaderboardData; monthly: LeaderboardData; overall: LeaderboardData; };
 type FullLeaderboard = { percentage: LeaderboardCategory; score: LeaderboardCategory; };
@@ -99,16 +100,27 @@ const LeaderboardList = ({ data, metric, currentUser, title }: { data: UserRank[
 };
 
 export default function LeaderboardPage() {
-    const { data: session } = useSession();
+    const { user, isLoading: isAuthLoading } = useAuth();
     const [leaderboardData, setLeaderboardData] = useState<FullLeaderboard | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [view, setView] = useState<'percentage' | 'score'>('percentage');
     const [timeframe, setTimeframe] = useState<'daily' | 'weekly' | 'monthly' | 'overall'>('overall');
 
+
     useEffect(() => {
+        if (isAuthLoading) return;
+        if (!user) {
+            // User is not logged in, no need to fetch
+            setIsLoading(false);
+            return;
+        }
+
         const fetchData = async () => {
             try {
-                const response = await fetch('/api/leaderboard');
+                const token = await user.getIdToken();
+                const response = await fetch('/api/leaderboard', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
                 if (!response.ok) throw new Error('Failed to fetch leaderboard data.');
                 const data = await response.json();
                 setLeaderboardData(data);
@@ -119,9 +131,10 @@ export default function LeaderboardPage() {
             }
         };
         fetchData();
-    }, []);
+    }, [user, isAuthLoading]);
 
-    if (isLoading) return <div className="text-center py-12">Loading Leaderboards...</div>;
+    if (isLoading || isAuthLoading) return <div className="text-center py-12">Loading Leaderboards...</div>;
+    if (!user) return <div className="text-center py-12">Please sign in to view the leaderboards.</div>;
     if (!leaderboardData) return <div className="text-center py-12">Could not load leaderboard data.</div>;
 
     const currentData = leaderboardData[view][timeframe];

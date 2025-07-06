@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { IFlashcardSet } from '@/models/FlashcardSet';
+import { IFlashcardSet } from '@/types';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
@@ -152,7 +153,7 @@ export const DashboardClient = () => {
         {filteredAndSortedSets.length > 0 ? (
             <ul role="list" className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filteredAndSortedSets.map((set) => (
-                <li key={set._id} className="col-span-1 flex flex-col divide-y divide-gray-200 dark:divide-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow">
+                <li key={set.id} className="col-span-1 flex flex-col divide-y divide-gray-200 dark:divide-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow">
                 <div className="flex flex-1 flex-col p-6">
                     <div className="flex-1">
                         <div className="flex items-center gap-x-2">
@@ -172,22 +173,22 @@ export const DashboardClient = () => {
                 <div>
                     <div className="-mt-px flex divide-x divide-gray-200 dark:divide-gray-700">
                     <div className="flex w-0 flex-1">
-                        <a href={set.dueCount > 0 ? `/study/${set._id}/review` : `/study/${set._id}`} className={`relative -mr-px inline-flex w-0 flex-1 items-center justify-center gap-x-3 rounded-bl-lg border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 ${set.dueCount > 0 ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
+                        <a href={set.dueCount > 0 ? `/study/${set.id}/review` : `/study/${set.id}`} className={`relative -mr-px inline-flex w-0 flex-1 items-center justify-center gap-x-3 rounded-bl-lg border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 ${set.dueCount > 0 ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
                         {set.dueCount > 0 ? 'Review Due' : 'Study All'}
                         </a>
                     </div>
                     <div className="-ml-px flex w-0 flex-1">
-                        <a href={`/sets/${set._id}/leaderboard`} className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-3 border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <a href={`/sets/${set.id}/leaderboard`} className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-3 border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700">
                         Leaders
                         </a>
                     </div>
                     <div className="-ml-px flex w-0 flex-1">
-                        <a href={`/sets/${set._id}/preview`} className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-3 border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <a href={`/sets/${set.id}/preview`} className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-3 border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700">
                         Preview
                         </a>
                     </div>
                     <div className="-ml-px flex w-0 flex-1">
-                        <a href={`/sets/${set._id}/edit`} className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-3 rounded-br-lg border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <a href={`/sets/${set.id}/edit`} className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-3 rounded-br-lg border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700">
                         Edit
                         </a>
                     </div>

@@ -1,9 +1,15 @@
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import Link from 'next/link';
+"use client";
 
-export default async function HomePage() {
-  const session = await getServerSession(authOptions);
+import Link from 'next/link';
+import { useAuth } from '@/components/providers/AuthProvider';
+
+export default function HomePage() {
+  const { user, isLoading } = useAuth();
+
+  // Show a loading state while authentication is being checked
+  if (isLoading) {
+    return <div className="text-center py-12">Loading...</div>;
+  }
 
   return (
     <div className="relative isolate px-6 pt-14 lg:px-8">
@@ -12,10 +18,10 @@ export default async function HomePage() {
           <h1 className="text-4xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-6xl">
             Flashcard AI Pro
           </h1>
-          {session ? (
+          {user ? (
             <div>
               <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
-                Welcome back, <span className="font-bold">{session.user?.email}</span>!
+                Welcome back, <span className="font-bold">{user.displayName || user.email}</span>!
               </p>
                <div className="mt-10 flex items-center justify-center gap-x-6">
                 <Link
