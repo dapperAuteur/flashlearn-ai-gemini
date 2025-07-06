@@ -41,3 +41,5 @@ yarn-error.log*
 next-env.d.ts
 
 awews-apps-firebase-adminsdk-fbsvc-c638507b88.json
+
+pglite-debug.log
