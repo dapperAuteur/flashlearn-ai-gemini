@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI, Part } from '@google/generative-ai';
-import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB} from '@/lib/constants';
+import { Part } from '@google/generative-ai';
+import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB, FLASHCARD_MAX, FLASHCARD_MIN, MODEL } from '@/lib/constants';
 
 // It's recommended to use a model that's optimized for multimodal inputs
 // like gemini-1.5-flash when it becomes generally available.
 // For now, we will prepare the structure.
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,7 +33,7 @@ export async function POST(req: NextRequest) {
     // 2. Create the prompt for the Gemini API
     const prompt = `
       Listen to the following audio. Transcribe the content and then, based on that transcription, 
-      generate a set of 5 to 15 flashcards that capture the key concepts and information.
+      generate a set of ${FLASHCARD_MIN} to ${FLASHCARD_MAX} flashcards that capture the key concepts and information.
 
       Please respond with ONLY a valid JSON array of objects. Each object should represent a flashcard
       and have two properties: "front" (the question or term) and "back" (the answer or definition).
@@ -43,7 +41,7 @@ export async function POST(req: NextRequest) {
     `;
 
     // 3. Send the audio and prompt to the Gemini API
-    const result = await model.generateContent([prompt, audioPart]);
+    const result = await MODEL.generateContent([prompt, audioPart]);
     const response = await result.response;
     const text = await response.text();
 

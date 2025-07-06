@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { MODEL } from '@/lib/constants';
+import { FLASHCARD_MAX, FLASHCARD_MIN, MODEL } from '@/lib/constants';
 
 //}
 
 // Initialize the Google Generative AI client with the API key
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(req: Request) {
   try {
@@ -17,7 +15,7 @@ export async function POST(req: Request) {
 
     // This is a carefully crafted prompt to ensure the AI returns a valid JSON array.
     const fullPrompt = `
-      Based on the following topic, generate a set of 5 to 10 flashcards.
+      Based on the following topic, generate a set of ${FLASHCARD_MIN} to ${FLASHCARD_MAX} flashcards.
       The topic is: "${prompt}".
       Please respond with ONLY a valid JSON array of objects. Each object should represent a flashcard
       and have two properties: "front" (the question or term) and "back" (the answer or definition).

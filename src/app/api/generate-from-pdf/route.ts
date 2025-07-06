@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pdf from 'pdf-parse';
-import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB, MODEL } from '@/lib/constants';
+import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB, FLASHCARD_MAX, FLASHCARD_MIN, MODEL } from '@/lib/constants';
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Use the Gemini API to generate flashcards from the text
     const prompt = `
-      Based on the following text extracted from a PDF, generate a set of 5 to 15 flashcards
+      Based on the following text extracted from a PDF, generate a set of ${FLASHCARD_MIN} to ${FLASHCARD_MAX} flashcards
       that capture the key concepts, definitions, and important information.
 
       PDF Text (first 30000 characters): "${pdfText.substring(0, 30000)}" 

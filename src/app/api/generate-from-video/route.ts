@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Part } from '@google/generative-ai';
-import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB, MODEL} from '@/lib/constants';
+import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB, FLASHCARD_MAX, FLASHCARD_MIN, MODEL} from '@/lib/constants';
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     // 2. Create the prompt for the Gemini API
     const prompt = `
       Analyze the following video. Based on its visual and audio content, 
-      generate a set of 5 to 15 flashcards that capture the key concepts and information presented.
+      generate a set of ${FLASHCARD_MIN} to ${FLASHCARD_MAX} flashcards that capture the key concepts and information presented.
 
       Please respond with ONLY a valid JSON array of objects. Each object should represent a flashcard
       and have two properties: "front" (the question or term) and "back" (the answer or definition).

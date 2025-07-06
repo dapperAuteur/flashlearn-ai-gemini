@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { YoutubeTranscript } from 'youtube-transcript';
-import { MODEL } from '@/lib/constants';
+import { FLASHCARD_MAX, FLASHCARD_MIN, MODEL } from '@/lib/constants';
 
 export async function POST(req: Request) {
   console.log("youtube api");
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
     // 2. Use the Gemini API to generate flashcards from the transcript
     const prompt = `
-      Based on the following video transcript, generate a set of 5 to 10 flashcards
+      Based on the following video transcript, generate a set of ${FLASHCARD_MIN} to ${FLASHCARD_MAX} flashcards
       that capture the key concepts and information.
       
       Transcript: "${transcript.substring(0, 30000)}" 
