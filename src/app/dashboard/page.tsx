@@ -86,12 +86,20 @@ export default async function DashboardPage() {
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
           My Flashcard Sets
         </h1>
-        <Link 
-            href="/generate"
-            className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-        >
-            Create New Set
-        </Link>
+        <div className="flex items-center gap-x-4">
+            <Link 
+                href="/analytics"
+                className="text-sm font-semibold leading-6 text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
+            >
+                View Analytics
+            </Link>
+            <Link 
+                href="/generate"
+                className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            >
+                Create New Set
+            </Link>
+        </div>
       </div>
 
       {flashcardSets.length > 0 ? (
