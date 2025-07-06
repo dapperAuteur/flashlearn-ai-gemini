@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 });
 
     try {
-        const { data } = await req.json(); // Data is the parsed CSV from the client
+        const { data } = await req.json();
         if (!data || !Array.isArray(data) || data.length === 0) {
             return new NextResponse('No data provided for import.', { status: 400 });
         }
@@ -25,23 +25,27 @@ export async function POST(req: NextRequest) {
         }
 
         // Group flashcards by setTitle
-        const setsToCreate: Record<string, { front: string; back: string }[]> = {};
+        const setsToCreate: Record<string, { flashcards: { front: string; back: string }[], isPublic: boolean }> = {};
         for (const row of data) {
             if (row.setTitle && row.front && row.back) {
-                if (!setsToCreate[row.setTitle]) {
-                    setsToCreate[row.setTitle] = [];
+                const title = row.setTitle;
+                if (!setsToCreate[title]) {
+                    // Set isPublic based on the first row for a given set title.
+                    // A case-insensitive check for 'true'. Defaults to false.
+                    const isPublic = /true/i.test(row.isPublic);
+                    setsToCreate[title] = { flashcards: [], isPublic };
                 }
-                setsToCreate[row.setTitle].push({ front: row.front, back: row.back });
+                setsToCreate[title].flashcards.push({ front: row.front, back: row.back });
             }
         }
 
-        // Create new FlashcardSet for each group
         let setsCreatedCount = 0;
         for (const title in setsToCreate) {
             const newSet = new FlashcardSet({
                 profile: userProfile._id,
                 title,
-                flashcards: setsToCreate[title],
+                flashcards: setsToCreate[title].flashcards,
+                isPublic: setsToCreate[title].isPublic, // Set the visibility
                 source: 'CSV',
             });
             await newSet.save();

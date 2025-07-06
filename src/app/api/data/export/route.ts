@@ -20,16 +20,17 @@ export async function GET() {
             return new NextResponse('No data to export.', { status: 404 });
         }
 
-        // Flatten the data for CSV export
+        // Flatten the data for CSV export, now including isPublic
         const flatData = sets.flatMap(set => 
             set.flashcards.map(card => ({
                 setTitle: set.title,
                 front: card.front,
                 back: card.back,
+                isPublic: set.isPublic, // Add the isPublic field
             }))
         );
 
-        const json2csvParser = new Parser({ fields: ['setTitle', 'front', 'back'] });
+        const json2csvParser = new Parser({ fields: ['setTitle', 'front', 'back', 'isPublic'] });
         const csv = json2csvParser.parse(flatData);
 
         return new NextResponse(csv, {
