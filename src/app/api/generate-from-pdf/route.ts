@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     // 1. Parse the PDF to extract text
     const fileBuffer = await file.arrayBuffer();
-    const pdfData = await pdf(fileBuffer);
+    const pdfData = await pdf(Buffer.from(fileBuffer));
     const pdfText = pdfData.text;
 
     if (!pdfText) {

@@ -48,8 +48,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ flashcards });
 
   } catch (error) {
-    console.error('YOUTUBE_GENERATION_ERROR', error);
-    if (error.message.includes('Could not find a transcript')) {
+    console.error('YOUTUBE_GENERATION_ERROR', error); 
+    // Type assertion to treat error as an object with a message property
+    if (error instanceof Error && error.message.includes('Could not find a transcript')) {
         return new NextResponse('No transcript found for this video.', { status: 404 });
     }
     return new NextResponse('An internal error occurred while generating flashcards from YouTube.', { status: 500 });
