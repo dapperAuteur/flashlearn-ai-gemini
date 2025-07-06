@@ -12,6 +12,7 @@ import { AudioForm } from '@/components/generation/AudioForm';
 import { VideoForm } from './VideoForm';
 import { TextForm } from './TextForm';
 import { ImageForm } from './ImageForm';
+import { CsvForm } from './CSVForm';
 
 
 const tabs = [
@@ -22,6 +23,7 @@ const tabs = [
   { name: 'From Video', component: VideoForm },
   { name: 'From Text', component: TextForm },
   { name: 'From Images', component: ImageForm },
+  { name: 'From CSV', component: CsvForm },
 ];
 
 function classNames(...classes: string[]) {
