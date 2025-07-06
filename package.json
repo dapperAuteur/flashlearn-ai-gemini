@@ -18,10 +18,12 @@
     "mongoose": "^8.16.1",
     "next": "15.3.5",
     "next-auth": "^4.24.11",
+    "pdf-parse": "^1.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-is": "^19.1.0",
-    "recharts": "^3.0.2"
+    "recharts": "^3.0.2",
+    "youtube-transcript": "^1.2.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

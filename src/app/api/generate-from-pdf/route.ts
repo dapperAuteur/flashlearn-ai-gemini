@@ -1,0 +1,53 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import pdf from 'pdf-parse';
+
+// Initialize the Google Generative AI client
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+
+export async function POST(req: NextRequest) {
+  try {
+    const formData = await req.formData();
+    const file = formData.get('file') as File | null;
+
+    if (!file) {
+      return new NextResponse('No PDF file provided', { status: 400 });
+    }
+
+    // 1. Parse the PDF to extract text
+    const fileBuffer = await file.arrayBuffer();
+    const pdfData = await pdf(fileBuffer);
+    const pdfText = pdfData.text;
+
+    if (!pdfText) {
+        return new NextResponse('Could not extract text from the PDF.', { status: 500 });
+    }
+
+    // 2. Use the Gemini API to generate flashcards from the text
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const prompt = `
+      Based on the following text extracted from a PDF, generate a set of 5 to 15 flashcards
+      that capture the key concepts, definitions, and important information.
+
+      PDF Text (first 30000 characters): "${pdfText.substring(0, 30000)}" 
+      
+      Please respond with ONLY a valid JSON array of objects. Each object should represent a flashcard
+      and have two properties: "front" (the question or term) and "back" (the answer or definition).
+      Do not include any text, explanation, or markdown formatting before or after the JSON array.
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = await response.text();
+
+    // Clean and parse the response
+    const jsonText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const flashcards = JSON.parse(jsonText);
+
+    return NextResponse.json({ flashcards, fileName: file.name });
+
+  } catch (error) {
+    console.error('PDF_GENERATION_ERROR', error);
+    return new NextResponse('An internal error occurred while processing the PDF.', { status: 500 });
+  }
+}
