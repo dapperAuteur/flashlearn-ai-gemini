@@ -24,8 +24,8 @@ export async function POST(req: Request) {
     const fullPrompt = `
       Based on the following topic, generate a set of ${FLASHCARD_MIN} to ${FLASHCARD_MAX} flashcards.
       The topic is: "${prompt}".
-      Please respond with ONLY a valid JSON array of objects. Each object should represent a flashcard
-      and have two properties: "front" (the question or term) and "back" (the answer or definition).
+      IMPORTANT: Use only information from vetted, peer-reviewed, and trustworthy sources to generate the content for these flashcards.
+      Please respond with ONLY a valid JSON array of objects. Each object should represent a flashcard and have two properties: "front" (the question or term) and "back" (the answer or definition).
       Do not include any text, explanation, or markdown formatting before or after the JSON array.
 
       Example format:
