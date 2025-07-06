@@ -1,0 +1,9 @@
+setTitle,front,back
+"Basic Example","What is the capital of France?","Paris"
+"Commas, and more","This field contains a comma, so the whole field is quoted.","The answer is simple."
+"Quotes Example","How do you write a ""quote"" in a CSV?","You escape it with another double quote, like this: ""."
+"Multiline Example","This question spans
+multiple lines.","This answer also spans
+multiple lines, which is allowed inside quotes."
+"All Together","This field has ""everything"": commas, quotes, and
+a newline.","'Single quotes' are fine and don't need special handling."
