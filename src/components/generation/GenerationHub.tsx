@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { PromptForm } from '@/components/forms/PromptForm';
 import { YouTubeForm } from '@/components/forms/YouTubeForm';
 import { PdfForm } from '@/components/forms/PdfForm';
+import { AudioForm } from '@/components/forms/AudioForm';
 
 
 // Define the structure of a single flashcard
@@ -17,6 +18,7 @@ const tabs = [
   { name: 'From Prompt', component: PromptForm },
   { name: 'From YouTube', component: YouTubeForm },
   { name: 'From PDF', component: PdfForm },
+  { name: 'From Audio', component: AudioForm },
 ];
 
 function classNames(...classes: string[]) {
