@@ -48,6 +48,12 @@ export default async function DashboardPage() {
         </h1>
         <div className="flex items-center gap-x-6">
             <Link 
+                href="/leaderboard"
+                className="text-sm font-semibold leading-6 text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
+            >
+                Leaderboard
+            </Link>
+            <Link 
                 href="/analytics/summary"
                 className="text-sm font-semibold leading-6 text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
             >
