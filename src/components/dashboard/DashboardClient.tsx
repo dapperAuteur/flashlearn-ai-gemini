@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -128,6 +127,11 @@ export const DashboardClient = ({ initialSets }: Props) => {
                     <div className="flex w-0 flex-1">
                         <a href={set.dueCount > 0 ? `/study/${set._id}/review` : `/study/${set._id}`} className={`relative -mr-px inline-flex w-0 flex-1 items-center justify-center gap-x-3 rounded-bl-lg border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 ${set.dueCount > 0 ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
                         {set.dueCount > 0 ? 'Review Due' : 'Study All'}
+                        </a>
+                    </div>
+                    <div className="-ml-px flex w-0 flex-1">
+                        <a href={`/sets/${set._id}/leaderboard`} className="relative inline-flex w-0 flex-1 items-center justify-center gap-x-3 border border-transparent py-4 text-sm font-semibold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700">
+                        Leaders
                         </a>
                     </div>
                     <div className="-ml-px flex w-0 flex-1">
