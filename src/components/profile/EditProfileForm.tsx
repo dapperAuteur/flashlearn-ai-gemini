@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { IUser } from '@/models/User';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export const EditProfileForm = ({ user }: { user: IUser }) => {
     const router = useRouter();
@@ -52,7 +53,6 @@ export const EditProfileForm = ({ user }: { user: IUser }) => {
 
         setIsLoading(true);
         const data = new FormData();
-        // Append all form data fields
         Object.entries(formData).forEach(([key, value]) => {
             if (value) data.append(key, value);
         });
@@ -65,7 +65,6 @@ export const EditProfileForm = ({ user }: { user: IUser }) => {
             });
             if (!response.ok) throw new Error(await response.text());
             setSuccess('Profile updated successfully!');
-            // Clear password fields after successful submission
             setFormData(prev => ({ ...prev, oldPassword: '', newPassword: '', confirmNewPassword: '' }));
             router.refresh();
         } catch (err: any) {
@@ -133,7 +132,10 @@ export const EditProfileForm = ({ user }: { user: IUser }) => {
                     </div>
                 </div>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-x-4">
+                <Link href="/profile" className="rounded-md bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    Cancel
+                </Link>
                 <button type="submit" disabled={isLoading} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50">
                     {isLoading ? 'Saving...' : 'Save Changes'}
                 </button>
