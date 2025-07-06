@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import pdf from 'pdf-parse';
+import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB} from '@/lib/constants';
 
 // Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -12,6 +13,10 @@ export async function POST(req: NextRequest) {
 
     if (!file) {
       return new NextResponse('No PDF file provided', { status: 400 });
+    }
+
+    if (file.size > FILE_SIZE_LIMIT_BYTES) {
+      return new NextResponse(`File is too large. The maximum size is ${FILE_SIZE_LIMIT_MB}MB.`, { status: 413 });
     }
 
     // 1. Parse the PDF to extract text

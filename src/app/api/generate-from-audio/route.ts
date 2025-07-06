@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI, Part } from '@google/generative-ai';
+import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB} from '@/lib/constants';
 
 // It's recommended to use a model that's optimized for multimodal inputs
 // like gemini-1.5-flash when it becomes generally available.
@@ -14,6 +15,10 @@ export async function POST(req: NextRequest) {
 
     if (!file) {
       return new NextResponse('No audio file provided', { status: 400 });
+    }
+
+    if (file.size > FILE_SIZE_LIMIT_BYTES) {
+      return new NextResponse(`File is too large. The maximum size is ${FILE_SIZE_LIMIT_MB}MB.`, { status: 413 });
     }
 
     // 1. Convert the audio file to a base64 string for the API

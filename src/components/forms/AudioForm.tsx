@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { FlashcardResult } from '@/components/flashcards/FlashcardResult';
 import { IFlashcard } from '@/models/FlashcardSet';
+import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB} from '@/lib/constants';
 
 export const AudioForm = () => {
     const [file, setFile] = useState<File | null>(null);
@@ -13,9 +14,16 @@ export const AudioForm = () => {
     const [fileName, setFileName] = useState('');
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            setFile(e.target.files[0]);
+      const selectedFile = e.target.files?.[0];
+      if (selectedFile) {
+        if (selectedFile.size > FILE_SIZE_LIMIT_MB * FILE_SIZE_LIMIT_BYTES) {
+          setError(`File size exceeds the ${FILE_SIZE_LIMIT_MB}MB limit.`);
+          setFile(null);
+        } else {
+          setError(null);
+          setFile(selectedFile);
         }
+      }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -56,6 +64,9 @@ export const AudioForm = () => {
                     <div className="mt-2">
                         <input id="audio_file" name="audio_file" type="file" onChange={handleFileChange} accept="audio/mpeg,audio/wav,audio/x-m4a" className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 dark:file:bg-indigo-900/50 file:text-indigo-700 dark:file:text-indigo-300 hover:file:bg-indigo-100 dark:hover:file:bg-indigo-900" required />
                     </div>
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Accepted formats: FLAC, MP3, Ogg, WAV, WMA. Max size: {FILE_SIZE_LIMIT_MB}MB.
+                    </p>
                 </div>
                 <button type="submit" disabled={isLoading} className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50">{isLoading ? 'Transcribing & Generating...' : 'Generate Flashcards'}</button>
             </form>
