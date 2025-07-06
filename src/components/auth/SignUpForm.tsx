@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 
 export const SignUpForm = () => {
   const router = useRouter();
@@ -29,31 +29,47 @@ export const SignUpForm = () => {
     setError(null);
 
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+      // Step 1: Create the user in Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+      const user = userCredential.user;
+
+      // Step 2: Update the Firebase Auth profile with the user's name
+      await updateProfile(user, {
+        displayName: `${formData.firstName} ${formData.lastName}`,
       });
 
-      if (!response.ok) {
-        const data = await response.text();
-        throw new Error(data || 'Something went wrong.');
-      }
-
-      // Automatically sign in the user after successful registration
-      const signInResult = await signIn('credentials', {
-        redirect: true,
-        callbackUrl: '/dashboard',
+      // Step 3: Create a new user document in Firestore
+      // The document ID will be the user's UID from Firebase Auth
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email,
-        password: formData.password,
+        zipCode: formData.zipCode,
+        phoneNumber: formData.phoneNumber,
+        createdAt: new Date(),
+        // Initialize other fields as needed
+        subscriptionTier: 'Free',
       });
 
-      if (signInResult?.error) {
-        throw new Error('Could not sign you in. Please try signing in manually.');
-      }
+      // Step 4: Redirect to the dashboard on successful signup
+      router.push('/dashboard');
 
     } catch (err: any) {
-      setError(err.message);
+      // Handle Firebase-specific errors
+      if (err.code === 'auth/email-already-in-use') {
+        setError('This email address is already in use.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('The password is too weak. It must be at least 6 characters long.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+        console.error(err);
+      }
+    } finally {
       setIsLoading(false);
     }
   };

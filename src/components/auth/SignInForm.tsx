@@ -1,13 +1,12 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
-
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
-// import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export const SignInForm = () => {
-  // const router = useRouter();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -19,22 +18,21 @@ export const SignInForm = () => {
     setError(null);
 
     try {
-      const result = await signIn('credentials', {
-        // Let NextAuth handle the redirect on success
-        redirect: true,
-        callbackUrl: '/',
-        email,
-        password,
-      });
+      // Sign in the user with Firebase Authentication
+      await signInWithEmailAndPassword(auth, email, password);
+      
+      // On success, redirect to the dashboard
+      router.push('/dashboard');
 
-      // If signIn returns an error, it means the redirect failed.
-      if (result?.error) {
+    } catch (err: any) {
+      // Handle Firebase-specific authentication errors
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setError('Invalid email or password. Please try again.');
-        setIsLoading(false);
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+        console.error(err);
       }
-      // On success, NextAuth handles the redirect, so no router.push() is needed.
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
