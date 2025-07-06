@@ -3,11 +3,23 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { IUser } from '@/models/User';
+import { useAuth } from '@/components/providers/AuthProvider';
 import Image from 'next/image';
 import Link from 'next/link';
+import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 
-export const EditProfileForm = ({ user }: { user: IUser }) => {
+// Define a type for the user data prop
+interface UserProfileData {
+    firstName: string;
+    lastName: string;
+    email: string;
+    zipCode: string;
+    phoneNumber?: string;
+    image?: string;
+}
+
+export const EditProfileForm = ({ user }: { user: UserProfileData }) => {
+    const { user: authUser } = useAuth();
     const router = useRouter();
     const [formData, setFormData] = useState({
         firstName: user.firstName,
@@ -42,33 +54,57 @@ export const EditProfileForm = ({ user }: { user: IUser }) => {
         setError(null);
         setSuccess(null);
 
+        if (!authUser) {
+            setError("Authentication error. Please sign in again.");
+            return;
+        }
+
         if (formData.newPassword && formData.newPassword !== formData.confirmNewPassword) {
             setError('New passwords do not match.');
             return;
         }
         if (formData.newPassword && !formData.oldPassword) {
-            setError('Please enter your old password to set a new one.');
+            setError('Please enter your current password to set a new one.');
             return;
         }
 
         setIsLoading(true);
-        const data = new FormData();
-        Object.entries(formData).forEach(([key, value]) => {
-            if (value) data.append(key, value);
-        });
-        if (file) data.append('file', file);
-
+        
         try {
+            // Re-authenticate user if they are changing their password
+            if (formData.newPassword && formData.oldPassword) {
+                const credential = EmailAuthProvider.credential(authUser.email!, formData.oldPassword);
+                await reauthenticateWithCredential(authUser, credential);
+            }
+
+            const data = new FormData();
+            Object.entries(formData).forEach(([key, value]) => {
+                // Don't send old password to the server
+                if (value && key !== 'oldPassword' && key !== 'confirmNewPassword') {
+                    data.append(key, value);
+                }
+            });
+            if (file) data.append('file', file);
+
+            const token = await authUser.getIdToken();
             const response = await fetch('/api/profile', {
                 method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` },
                 body: data,
             });
+
             if (!response.ok) throw new Error(await response.text());
+            
             setSuccess('Profile updated successfully!');
             setFormData(prev => ({ ...prev, oldPassword: '', newPassword: '', confirmNewPassword: '' }));
-            router.refresh();
+            router.refresh(); // Refresh server components to show updated data on profile page
+
         } catch (err: any) {
-            setError(err.message);
+            if (err.code === 'auth/wrong-password') {
+                setError('Incorrect current password.');
+            } else {
+                setError(err.message || 'An unexpected error occurred.');
+            }
         } finally {
             setIsLoading(false);
         }
