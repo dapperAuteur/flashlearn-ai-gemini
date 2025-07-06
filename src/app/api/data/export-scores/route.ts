@@ -1,40 +1,49 @@
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/mongodb';
-import StudyAnalytics from '@/models/StudyAnalytics';
-import Profile from '@/models/Profile';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { NextRequest, NextResponse } from 'next/server';
+import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { Parser } from 'json2csv';
 
-export async function GET() {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 });
-
+export async function GET(req: NextRequest) {
     try {
-        await dbConnect();
-        const userProfiles = await Profile.find({ user: session.user.id });
-        const profileIds = userProfiles.map(p => p._id);
+        const token = req.headers.get('Authorization')?.split('Bearer ')[1];
+        if (!token) return new NextResponse('Unauthorized', { status: 401 });
+
+        const decodedToken = await adminAuth.verifyIdToken(token);
+        const userId = decodedToken.uid;
+
+        // We need to get the user's profile to find their analytics
+        const profileQuery = await adminDb.collection('users').doc(userId).collection('profiles').get();
+        if (profileQuery.empty) {
+            return new NextResponse('No profile found for user.', { status: 404 });
+        }
+        const profileIds = profileQuery.docs.map(doc => doc.id);
 
         // Find all analytics documents for the user's profiles
-        const analytics = await StudyAnalytics.find({ profile: { $in: profileIds } })
-            .populate('set', 'title') // Populate the set title
-            .lean();
+        const analyticsSnapshot = await adminDb.collection('studyAnalytics').where('profileId', 'in', profileIds).get();
 
-        if (analytics.length === 0) {
+        if (analyticsSnapshot.empty) {
             return new NextResponse('No score data to export.', { status: 404 });
         }
 
+        const analyticsData = analyticsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // Fetch all set titles in parallel for efficiency
+        const setIds = [...new Set(analyticsData.map(a => a.setId))];
+        const setRefs = setIds.map(id => adminDb.collection('flashcardSets').doc(id));
+        const setDocs = await adminDb.getAll(...setRefs);
+        const setTitles = Object.fromEntries(setDocs.map(doc => [doc.id, doc.data()?.title || 'Untitled Set']));
+
         // Format the data for CSV export
-        const flatData = analytics.map(analytic => {
-            const totalCorrect = analytic.cardPerformance.reduce((sum, p) => sum + p.correctCount, 0);
-            const totalIncorrect = analytic.cardPerformance.reduce((sum, p) => sum + p.incorrectCount, 0);
+        const flatData = analyticsData.map(analytic => {
+            const totalCorrect = analytic.cardPerformance.reduce((sum: number, p: any) => sum + p.correctCount, 0);
+            const totalIncorrect = analytic.cardPerformance.reduce((sum: number, p: any) => sum + p.incorrectCount, 0);
             return {
-                setTitle: analytic.set ? (analytic.set as any).title : 'Untitled Set',
+                setTitle: setTitles[analytic.setId],
                 averageScorePercent: analytic.setPerformance.averageScore.toFixed(2),
                 totalCorrect,
                 totalIncorrect,
                 totalStudySessions: analytic.setPerformance.totalStudySessions,
-                lastStudied: new Date(analytic.updatedAt).toISOString(),
+                lastStudied: analytic.updatedAt.toDate().toISOString(),
             };
         });
 

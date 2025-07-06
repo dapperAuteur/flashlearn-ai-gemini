@@ -8,6 +8,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 export default function DataManagementPage() {
     const { user } = useAuth();
     const [isExporting, setIsExporting] = useState(false);
+    const [isExportingScores, setIsExportingScores] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [file, setFile] = useState<File | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -37,6 +38,33 @@ export default function DataManagementPage() {
             setError(err.message);
         } finally {
             setIsExporting(false);
+        }
+    };
+
+    const handleScoreExport = async () => {
+        if (!user) return;
+        setIsExportingScores(true);
+        setError(null);
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch('/api/data/export-scores', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error(await response.text() || 'Failed to export scores.');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `flashcard_scores_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsExportingScores(false);
         }
     };
 
@@ -122,7 +150,7 @@ export default function DataManagementPage() {
                             Download a CSV file of your performance scores for all of your flashcard sets.
                         </p>
                         <button onClick={handleScoreExport} disabled={isExportingScores} className="rounded-md bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 disabled:opacity-50">
-                            {isExportingScores ? 'Exporting...' : 'Export Score Report'}
+                            {isExportingScores ? 'Exporting Scores...' : 'Export Score Report'}
                         </button>
                     </div>
                 </div>
