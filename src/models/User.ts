@@ -1,18 +1,31 @@
 import { Schema, model, models, Document } from 'mongoose';
 
 export interface IUser extends Document {
+  firstName: string;
+  lastName: string;
   email: string;
-  password?: string; // Password is required but will be handled by auth provider
+  zipCode: string;
+  phoneNumber?: string;
+  password?: string;
   role: 'Student' | 'Admin';
   profiles: Schema.Types.ObjectId[];
   stripeCustomerId?: string;
   subscriptionTier: 'Free' | 'Lifetime Learner';
-  // Timestamps
   createdAt: Date;
   updatedAt: Date;
 }
 
 const UserSchema = new Schema<IUser>({
+  firstName: {
+    type: String,
+    required: [true, 'First name is required.'],
+    trim: true,
+  },
+  lastName: {
+    type: String,
+    required: [true, 'Last name is required.'],
+    trim: true,
+  },
   email: {
     type: String,
     required: [true, 'Email is required.'],
@@ -20,9 +33,17 @@ const UserSchema = new Schema<IUser>({
     trim: true,
     lowercase: true,
   },
+  zipCode: {
+    type: String,
+    required: [true, 'Zip code is required.'],
+    trim: true,
+  },
+  phoneNumber: {
+    type: String,
+    trim: true,
+  },
   password: {
     type: String,
-    // Password is not always required, e.g., for OAuth providers
     required: false,
   },
   role: {

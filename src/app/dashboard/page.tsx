@@ -46,12 +46,18 @@ export default async function DashboardPage() {
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
           My Flashcard Sets
         </h1>
-        <div className="flex items-center gap-x-4">
+        <div className="flex items-center gap-x-6">
             <Link 
-                href="/analytics"
+                href="/analytics/summary"
                 className="text-sm font-semibold leading-6 text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
             >
-                View Analytics
+                Performance
+            </Link>
+             <Link 
+                href="/analytics/scores"
+                className="text-sm font-semibold leading-6 text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
+            >
+                Score Report
             </Link>
             <Link 
                 href="/generate"

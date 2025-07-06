@@ -7,6 +7,8 @@ import Profile from '@/models/Profile';
 import StudyAnalytics from '@/models/StudyAnalytics';
 import { calculateSM2 } from '@/lib/sm2';
 
+const SESSION_TIMEOUT_MINUTES = 30;
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 });
@@ -40,6 +42,16 @@ export async function POST(req: Request) {
       analytics = new StudyAnalytics({ profile: profile._id, set: setId });
     }
 
+    // Check if this is a new study session
+    const now = new Date();
+    const lastSession = new Date(analytics.setPerformance.lastSessionStarted);
+    const minutesSinceLastSession = (now.getTime() - lastSession.getTime()) / (1000 * 60);
+
+    if (minutesSinceLastSession > SESSION_TIMEOUT_MINUTES) {
+        analytics.setPerformance.totalStudySessions += 1;
+    }
+    analytics.setPerformance.lastSessionStarted = now;
+
     let cardPerf = analytics.cardPerformance.find(p => p.cardId.toString() === cardId);
     if (!cardPerf) {
       analytics.cardPerformance.push({ cardId, correctCount: 0, incorrectCount: 0 });
@@ -51,17 +63,14 @@ export async function POST(req: Request) {
     } else {
       cardPerf.incorrectCount += 1;
     }
-
-    // Recalculate overall set accuracy
+    
     const totalCorrect = analytics.cardPerformance.reduce((sum, p) => sum + p.correctCount, 0);
     const totalIncorrect = analytics.cardPerformance.reduce((sum, p) => sum + p.incorrectCount, 0);
     const totalAttempts = totalCorrect + totalIncorrect;
     const newAccuracy = totalAttempts > 0 ? (totalCorrect / totalAttempts) * 100 : 0;
     
     analytics.setPerformance.averageScore = newAccuracy;
-    
-    // Add a new entry to performance history
-    analytics.performanceHistory.push({ date: new Date(), accuracy: newAccuracy });
+    analytics.performanceHistory.push({ date: now, accuracy: newAccuracy });
 
     await analytics.save();
 

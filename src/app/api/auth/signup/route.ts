@@ -5,10 +5,11 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(req: Request) {
   try {
-    const { email, password } = await req.json();
+    const { firstName, lastName, email, password, zipCode, phoneNumber } = await req.json();
 
-    if (!email || !password) {
-      return new NextResponse('Email and password are required', { status: 400 });
+    // Validate required fields
+    if (!firstName || !lastName || !email || !password || !zipCode) {
+      return new NextResponse('Please fill out all required fields.', { status: 400 });
     }
 
     if (password.length < 6) {
@@ -26,8 +27,12 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
+      firstName,
+      lastName,
       email,
       password: hashedPassword,
+      zipCode,
+      phoneNumber,
     });
 
     await newUser.save();
