@@ -7,7 +7,7 @@ import { IFlashcard } from '@/models/FlashcardSet';
 type Props = {
     flashcards: IFlashcard[],
     initialTitle: string,
-    source: 'Audio' | 'Prompt' | 'PDF' | 'Text' | 'Video' | 'YouTube';
+    source: 'Audio' | 'Image' | 'Prompt' | 'PDF' | 'Text' | 'Video' | 'YouTube';
     onSaveSuccess: () => void
 }
 

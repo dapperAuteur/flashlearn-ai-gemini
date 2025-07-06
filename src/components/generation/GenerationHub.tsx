@@ -8,14 +8,8 @@ import { PdfForm } from '@/components/forms/PdfForm';
 import { AudioForm } from '@/components/forms/AudioForm';
 import { VideoForm } from '../forms/VideoForm';
 import { TextForm } from '../forms/TextForm';
+import { ImageForm } from '../forms/ImageForm';
 
-
-
-// Define the structure of a single flashcard
-// interface Flashcard {
-//   front: string;
-//   back: string;
-// }
 
 const tabs = [
   { name: 'From Prompt', component: PromptForm },
@@ -24,6 +18,7 @@ const tabs = [
   { name: 'From Audio', component: AudioForm },
   { name: 'From Video', component: VideoForm },
   { name: 'From Text', component: TextForm },
+  { name: 'From Images', component: ImageForm },
 ];
 
 function classNames(...classes: string[]) {
