@@ -3,21 +3,26 @@
 
 import { useState } from 'react';
 import Papa from 'papaparse';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 export default function DataManagementPage() {
+    const { user } = useAuth();
     const [isExporting, setIsExporting] = useState(false);
-    const [isExportingScores, setIsExportingScores] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [file, setFile] = useState<File | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
     const handleExport = async () => {
+        if (!user) return;
         setIsExporting(true);
         setError(null);
         try {
-            const response = await fetch('/api/data/export');
-            if (!response.ok) throw new Error('Failed to export data.');
+            const token = await user.getIdToken();
+            const response = await fetch('/api/data/export', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error(await response.text() || 'Failed to export data.');
             
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -35,29 +40,6 @@ export default function DataManagementPage() {
         }
     };
 
-    const handleScoreExport = async () => {
-        setIsExportingScores(true);
-        setError(null);
-        try {
-            const response = await fetch('/api/data/export-scores');
-            if (!response.ok) throw new Error(await response.text() || 'Failed to export scores.');
-            
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `flashcard_scores_${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setIsExportingScores(false);
-        }
-    };
-
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             setFile(e.target.files[0]);
@@ -65,10 +47,7 @@ export default function DataManagementPage() {
     };
 
     const handleImport = async () => {
-        if (!file) {
-            setError('Please select a file to import.');
-            return;
-        }
+        if (!file || !user) return;
         setIsImporting(true);
         setError(null);
         setSuccess(null);
@@ -78,9 +57,13 @@ export default function DataManagementPage() {
             skipEmptyLines: true,
             complete: async (results) => {
                 try {
+                    const token = await user.getIdToken();
                     const response = await fetch('/api/data/import', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
                         body: JSON.stringify({ data: results.data }),
                     });
                     if (!response.ok) throw new Error(await response.text());
