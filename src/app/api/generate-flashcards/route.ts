@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { MODEL } from '@/lib/constants';
+
+//}
 
 // Initialize the Google Generative AI client with the API key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -11,9 +14,6 @@ export async function POST(req: Request) {
     if (!prompt) {
       return new NextResponse('A prompt is required', { status: 400 });
     }
-
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-    console.log('model :>> ', model);
 
     // This is a carefully crafted prompt to ensure the AI returns a valid JSON array.
     const fullPrompt = `
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       ]
     `;
 
-    const result = await model.generateContent(fullPrompt);
+    const result = await MODEL.generateContent(fullPrompt);
     const response = await result.response;
     const text = await response.text();
 

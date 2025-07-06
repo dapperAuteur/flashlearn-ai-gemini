@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { YoutubeTranscript } from 'youtube-transcript';
-
-// Initialize the Google Generative AI client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+import { MODEL } from '@/lib/constants';
 
 export async function POST(req: Request) {
   console.log("youtube api");
@@ -25,7 +22,6 @@ export async function POST(req: Request) {
 
 
     // 2. Use the Gemini API to generate flashcards from the transcript
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     const prompt = `
       Based on the following video transcript, generate a set of 5 to 10 flashcards
       that capture the key concepts and information.
@@ -37,7 +33,7 @@ export async function POST(req: Request) {
       Do not include any text, explanation, or markdown formatting before or after the JSON array.
     `;
 
-    const result = await model.generateContent(prompt);
+    const result = await MODEL.generateContent(prompt);
     const response = await result.response;
     const text = await response.text();
 

@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import pdf from 'pdf-parse';
-import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB} from '@/lib/constants';
-
-// Initialize the Google Generative AI client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB, MODEL } from '@/lib/constants';
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +25,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Use the Gemini API to generate flashcards from the text
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     const prompt = `
       Based on the following text extracted from a PDF, generate a set of 5 to 15 flashcards
       that capture the key concepts, definitions, and important information.
@@ -41,7 +36,7 @@ export async function POST(req: NextRequest) {
       Do not include any text, explanation, or markdown formatting before or after the JSON array.
     `;
 
-    const result = await model.generateContent(prompt);
+    const result = await MODEL.generateContent(prompt);
     const response = await result.response;
     const text = await response.text();
 

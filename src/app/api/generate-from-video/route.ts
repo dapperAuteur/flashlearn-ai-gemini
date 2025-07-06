@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI, Part } from '@google/generative-ai';
-import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB} from '@/lib/constants';
-
-// Using a multimodal model is essential for this task.
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+import { Part } from '@google/generative-ai';
+import { FILE_SIZE_LIMIT_BYTES, FILE_SIZE_LIMIT_MB, MODEL} from '@/lib/constants';
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,7 +37,7 @@ export async function POST(req: NextRequest) {
     `;
 
     // 3. Send the video and prompt to the Gemini API
-    const result = await model.generateContent([prompt, videoPart]);
+    const result = await MODEL.generateContent([prompt, videoPart]);
     const response = await result.response;
     const text = await response.text();
 
