@@ -3,10 +3,10 @@
 
 import { useState } from 'react';
 import Papa from 'papaparse';
-import Link from 'next/link';
 
 export default function DataManagementPage() {
     const [isExporting, setIsExporting] = useState(false);
+    const [isExportingScores, setIsExportingScores] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [file, setFile] = useState<File | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -35,6 +35,29 @@ export default function DataManagementPage() {
         }
     };
 
+    const handleScoreExport = async () => {
+        setIsExportingScores(true);
+        setError(null);
+        try {
+            const response = await fetch('/api/data/export-scores');
+            if (!response.ok) throw new Error(await response.text() || 'Failed to export scores.');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `flashcard_scores_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsExportingScores(false);
+        }
+    };
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             setFile(e.target.files[0]);
@@ -53,7 +76,7 @@ export default function DataManagementPage() {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            complete: async (results: { data: any; }) => {
+            complete: async (results) => {
                 try {
                     const response = await fetch('/api/data/import', {
                         method: 'POST',
@@ -82,20 +105,9 @@ export default function DataManagementPage() {
                 Manage Your Data
             </h1>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Export Card */}
-                <div className="p-6 rounded-lg bg-white dark:bg-gray-800/50 shadow">
-                    <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Export Data</h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                        Download all of your flashcard sets as a single CSV file. This is a great way to create a backup or move your data to another service.
-                    </p>
-                    <button onClick={handleExport} disabled={isExporting} className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50">
-                        {isExporting ? 'Exporting...' : 'Export All Sets'}
-                    </button>
-                </div>
-
                 {/* Import Card */}
                 <div className="p-6 rounded-lg bg-white dark:bg-gray-800/50 shadow">
-                    <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Import Data</h2>
+                    <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Import Flashcards</h2>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                         Upload a CSV file to create new flashcard sets. Make sure your file follows the correct format.
                     </p>
@@ -107,6 +119,28 @@ export default function DataManagementPage() {
                          <a href="/csv_template.csv" download className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline block mt-2">
                             Download CSV Template
                         </a>
+                    </div>
+                </div>
+
+                {/* Export Section */}
+                <div className="p-6 rounded-lg bg-white dark:bg-gray-800/50 shadow space-y-6">
+                     <div>
+                        <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Export Flashcards</h2>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            Download all of your flashcard sets as a single CSV file.
+                        </p>
+                        <button onClick={handleExport} disabled={isExporting} className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50">
+                            {isExporting ? 'Exporting...' : 'Export All Sets'}
+                        </button>
+                    </div>
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                        <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Export Score Report</h2>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            Download a CSV file of your performance scores for all of your flashcard sets.
+                        </p>
+                        <button onClick={handleScoreExport} disabled={isExportingScores} className="rounded-md bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 disabled:opacity-50">
+                            {isExportingScores ? 'Exporting...' : 'Export Score Report'}
+                        </button>
                     </div>
                 </div>
             </div>
