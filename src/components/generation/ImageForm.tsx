@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { FlashcardResult } from '@/components/flashcards/FlashcardResult';
-import { IFlashcard } from '@/models/FlashcardSet';
+import { IFlashcard } from '@/types';
 import { IMAGE_MAX_FILES, IMAGE_MAX_FILE_SIZE_MB, IMAGE_MAX_FILE_SIZE_BYTES } from '@/lib/constants';
 
 export const ImageForm = () => {
