@@ -1,6 +1,13 @@
 import { Timestamp } from 'firebase/firestore';
 
 // Basic Flashcard structure
+export interface IFlashcardBasic {
+  id: string; // The document ID
+  front: string;
+  back: string;
+}
+
+// Complete Flashcard structure
 export interface IFlashcard {
   id: string; // The document ID
   front: string;
