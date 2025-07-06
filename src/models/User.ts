@@ -6,6 +6,7 @@ export interface IUser extends Document {
   email: string;
   zipCode: string;
   phoneNumber?: string;
+  image?: string; // Field for profile image URL
   password?: string;
   role: 'Student' | 'Admin';
   profiles: Schema.Types.ObjectId[];
@@ -16,55 +17,17 @@ export interface IUser extends Document {
 }
 
 const UserSchema = new Schema<IUser>({
-  firstName: {
-    type: String,
-    required: [true, 'First name is required.'],
-    trim: true,
-  },
-  lastName: {
-    type: String,
-    required: [true, 'Last name is required.'],
-    trim: true,
-  },
-  email: {
-    type: String,
-    required: [true, 'Email is required.'],
-    unique: true,
-    trim: true,
-    lowercase: true,
-  },
-  zipCode: {
-    type: String,
-    required: [true, 'Zip code is required.'],
-    trim: true,
-  },
-  phoneNumber: {
-    type: String,
-    trim: true,
-  },
-  password: {
-    type: String,
-    required: false,
-  },
-  role: {
-    type: String,
-    enum: ['Student', 'Admin'],
-    default: 'Student',
-  },
-  profiles: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Profile',
-  }],
-  stripeCustomerId: {
-    type: String,
-    unique: true,
-    sparse: true,
-  },
-  subscriptionTier: {
-    type: String,
-    enum: ['Free', 'Lifetime Learner'],
-    default: 'Free',
-  },
+  firstName: { type: String, required: true, trim: true },
+  lastName: { type: String, required: true, trim: true },
+  email: { type: String, required: true, unique: true, trim: true, lowercase: true },
+  zipCode: { type: String, required: true, trim: true },
+  phoneNumber: { type: String, trim: true },
+  image: { type: String }, // URL from Cloudinary
+  password: { type: String, required: false },
+  role: { type: String, enum: ['Student', 'Admin'], default: 'Student' },
+  profiles: [{ type: Schema.Types.ObjectId, ref: 'Profile' }],
+  stripeCustomerId: { type: String, unique: true, sparse: true },
+  subscriptionTier: { type: String, enum: ['Free', 'Lifetime Learner'], default: 'Free' },
 }, { timestamps: true });
 
 export default models.User || model<IUser>('User', UserSchema);
