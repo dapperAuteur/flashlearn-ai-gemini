@@ -4,6 +4,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { IFlashcard } from '@/models/FlashcardSet';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 type AugmentedFlashcard = IFlashcard & { setId: string };
 
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export const StudySession = ({ initialCards, sessionTitle }: Props) => {
+  const { user } = useAuth();
   const router = useRouter();
   const [cards, setCards] = useState<AugmentedFlashcard[]>(initialCards);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -50,35 +52,6 @@ export const StudySession = ({ initialCards, sessionTitle }: Props) => {
     }
   }, [initialCards]);
 
-  const handleReview = useCallback(async (quality: number) => {
-    if (isSubmitting || !currentCard) return;
-    setIsSubmitting(true);
-
-    if (quality >= 3) {
-      setScore(prev => ({ ...prev, correct: prev.correct + 1 }));
-      setFeedbackColor('bg-green-100 dark:bg-green-900/60');
-    } else {
-      setScore(prev => ({ ...prev, incorrect: prev.incorrect + 1 }));
-      setFeedbackColor('bg-red-100 dark:bg-red-900/60');
-    }
-
-    try {
-      await fetch('/api/flashcards/review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ setId: currentCard.setId, cardId: currentCard._id, quality }),
-      });
-    } catch (error) {
-      console.error("Failed to submit review:", error);
-    } finally {
-      setTimeout(() => {
-        setIsSubmitting(false);
-        setFeedbackColor('');
-        goToNextCard();
-      }, 700);
-    }
-  }, [isSubmitting, currentCard]);
-
   const goToNextCard = useCallback(() => {
     if (currentCardIndex >= cards.length - 1) {
       logSessionDuration();
@@ -92,6 +65,43 @@ export const StudySession = ({ initialCards, sessionTitle }: Props) => {
       setCurrentCardIndex((prev) => prev + 1);
     }
   }, [currentCardIndex, cards.length, isFlipped, logSessionDuration, router]);
+
+  const handleReview = useCallback(async (quality: number) => {
+    if (isSubmitting || !currentCard) return;
+    setIsSubmitting(true);
+
+    if (quality >= 3) {
+      setScore(prev => ({ ...prev, correct: prev.correct + 1 }));
+      setFeedbackColor('bg-green-100 dark:bg-green-900/60');
+    } else {
+      setScore(prev => ({ ...prev, incorrect: prev.incorrect + 1 }));
+      setFeedbackColor('bg-red-100 dark:bg-red-900/60');
+    }
+
+    try {
+      const token = await user?.getIdToken();
+      await fetch('/api/study/review', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+         },
+        body: JSON.stringify({
+          setId: currentCard.setId,
+          cardId: currentCard._id,
+          quality,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to submit review:", error);
+    } finally {
+      setTimeout(() => {
+        setIsSubmitting(false);
+        setFeedbackColor('');
+        goToNextCard();
+      }, 700);
+    }
+  }, [isSubmitting, currentCard, user, goToNextCard]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -124,7 +134,61 @@ export const StudySession = ({ initialCards, sessionTitle }: Props) => {
 
   return (
     <div className="flex flex-col items-center space-y-6">
-      {/* ... (rest of the JSX is the same as before) ... */}
+      <style>{`
+        .perspective { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+      `}</style>
+      
+      {/* Progress Bar and Counter */}
+      <div className="w-full max-w-2xl">
+        <div className="flex justify-between mb-1">
+            <span className="text-base font-medium text-indigo-700 dark:text-white">Score: {score.correct} / {score.correct + score.incorrect}</span>
+            <span className="text-sm font-medium text-indigo-700 dark:text-white">Card {currentCardIndex + 1} of {cards.length}</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+            <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progressPercentage}%` }}></div>
+        </div>
+      </div>
+
+      {/* Flippable Card */}
+      <div
+        className="w-full max-w-2xl h-80 perspective cursor-pointer"
+        onClick={() => setIsFlipped(!isFlipped)}
+      >
+        <div
+          className={`relative w-full h-full transform-style-3d transition-transform duration-500 ${isFlipped ? 'rotate-y-180' : ''}`}
+        >
+          {/* Front of the card */}
+          <div className={`absolute w-full h-full backface-hidden flex items-center justify-center rounded-lg shadow-lg p-6 transition-colors duration-300 ${feedbackColor || 'bg-white dark:bg-gray-800'}`}>
+            <p className="text-2xl text-center text-gray-900 dark:text-white">{currentCard.front}</p>
+          </div>
+          {/* Back of the card */}
+          <div className={`absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center rounded-lg shadow-lg p-6 transition-colors duration-300 ${feedbackColor || 'bg-white dark:bg-gray-700'}`}>
+            <p className="text-xl text-center text-gray-900 dark:text-white">{currentCard.back}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex w-full max-w-2xl justify-around">
+        <button
+          onClick={() => handleReview(1)}
+          disabled={isSubmitting}
+          className="rounded-full bg-red-500/20 text-red-700 dark:text-red-400 px-8 py-4 text-lg font-bold hover:bg-red-500/30 transition-colors disabled:opacity-50"
+        >
+          {isSubmitting ? '...' : 'Wrong'}
+        </button>
+        <button
+          onClick={() => handleReview(5)}
+          disabled={isSubmitting}
+          className="rounded-full bg-green-500/20 text-green-700 dark:text-green-400 px-8 py-4 text-lg font-bold hover:bg-green-500/30 transition-colors disabled:opacity-50"
+        >
+          {isSubmitting ? '...' : 'Right'}
+        </button>
+      </div>
+       <div className="text-sm text-gray-500 dark:text-gray-400">
+        Use <kbd className="font-mono p-1 bg-gray-200 dark:bg-gray-700 rounded-md">Spacebar</kbd> to flip, and <kbd className="font-mono p-1 bg-gray-200 dark:bg-gray-700 rounded-md">←</kbd> <kbd className="font-mono p-1 bg-gray-200 dark:bg-gray-700 rounded-md">→</kbd> arrows to answer.
+      </div>
     </div>
   );
 };
