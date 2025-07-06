@@ -13,7 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npm run build
+      # This step installs your project's dependencies
+      - name: Install Dependencies
+        run: npm ci
+      # This step builds your Next.js application
+      - name: Build Application
+        run: npm run build
+      # This step deploys the built app to Firebase
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
