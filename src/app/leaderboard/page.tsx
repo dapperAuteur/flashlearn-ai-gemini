@@ -3,6 +3,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import html2canvas from 'html2canvas';
 
@@ -63,6 +64,13 @@ const LeaderboardList = ({ data, metric, currentUser, title }: { data: UserRank[
                         <li key={i} className={`flex justify-between items-center p-2 rounded-md ${user.userId === currentUser?.userId ? 'bg-indigo-100 dark:bg-indigo-900/50' : ''}`}>
                             <div className="flex items-center gap-x-4">
                                 <span className="font-bold text-gray-500 dark:text-gray-400 w-6 text-center">{user.rank}</span>
+                                <div className="relative h-8 w-8 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+                                    {user.image ? (
+                                        <Image src={user.image} alt={`${user.name}'s profile`} layout="fill" objectFit="cover" />
+                                    ) : (
+                                        <svg className="h-full w-full text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M24 20.993V24H0v-2.997A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                                    )}
+                                </div>
                                 <span className="text-gray-700 dark:text-gray-300 truncate">{user.name}</span>
                             </div>
                             <span className="font-semibold text-gray-900 dark:text-white">

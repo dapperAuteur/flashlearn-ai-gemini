@@ -15,6 +15,7 @@ export const metadata: Metadata = {
 async function getCurrentUser(userId: string): Promise<IUser | null> {
     await dbConnect();
     const user = await User.findById(userId).select('-password').lean();
+    console.log('user :>> ', user);
     return user ? JSON.parse(JSON.stringify(user)) : null;
 }
 

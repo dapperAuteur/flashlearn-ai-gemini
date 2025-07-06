@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
@@ -33,6 +34,7 @@ export async function GET() {
     const allAnalytics = await StudyAnalytics.find({}).populate({ path: 'profile', select: 'user' }).lean();
 
     const userData = allUsers.map(user => {
+      // console.log('user :>> ', user);
         const userAnalytics = allAnalytics.filter(a => a.profile?.user?.toString() === user._id.toString());
         const overallCorrect = userAnalytics.reduce((sum, set) => sum + set.cardPerformance.reduce((s, p) => s + p.correctCount, 0), 0);
         const overallAccuracy = userAnalytics.length > 0 ? userAnalytics.reduce((sum, set) => sum + set.setPerformance.averageScore, 0) / userAnalytics.length : 0;
@@ -45,9 +47,10 @@ export async function GET() {
             daily: calculateStatsForPeriod(userAnalytics, 1),
             weekly: calculateStatsForPeriod(userAnalytics, 7),
             monthly: calculateStatsForPeriod(userAnalytics, 30),
-            overall: { totalCorrect, averageAccuracy, totalTimeStudied },
+            overall: { totalCorrect: overallCorrect, averageAccuracy: overallAccuracy, totalTimeStudied },
         };
     });
+    // console.log('userData :>> ', userData);
 
     const generateLeaderboard = (metric: 'totalCorrect' | 'averageAccuracy', period: 'daily' | 'weekly' | 'monthly' | 'overall') => {
         const sorted = [...userData].sort((a, b) => {
@@ -63,7 +66,21 @@ export async function GET() {
         return { top10, currentUser: currentUserData };
     };
 
-    const leaderboards = { /* ... (rest of the leaderboard generation) ... */ };
+    const leaderboards = {
+        percentage: {
+            daily: generateLeaderboard('averageAccuracy', 'daily'),
+            weekly: generateLeaderboard('averageAccuracy', 'weekly'),
+            monthly: generateLeaderboard('averageAccuracy', 'monthly'),
+            overall: generateLeaderboard('averageAccuracy', 'overall'),
+        },
+        score: {
+            daily: generateLeaderboard('totalCorrect', 'daily'),
+            weekly: generateLeaderboard('totalCorrect', 'weekly'),
+            monthly: generateLeaderboard('totalCorrect', 'monthly'),
+            overall: generateLeaderboard('totalCorrect', 'overall'),
+        }
+    };
+
     return NextResponse.json(leaderboards);
 
   } catch (error) {

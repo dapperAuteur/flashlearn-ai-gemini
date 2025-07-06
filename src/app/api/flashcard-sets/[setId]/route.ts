@@ -40,7 +40,7 @@ export async function PUT(
   if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 });
 
   try {
-    const { setId } = params;
+    const { setId } = await params;
     const { title, flashcards, isPublic } = await request.json();
 
     if (!title || !flashcards || !Array.isArray(flashcards) || isPublic === undefined) {
