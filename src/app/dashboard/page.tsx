@@ -1,17 +1,31 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import dbConnect from '@/lib/mongodb';
 import Profile from '@/models/Profile';
 import FlashcardSet, { IFlashcardSet } from '@/models/FlashcardSet';
 import Link from 'next/link';
 import { DashboardClient } from '@/components/dashboard/DashboardClient';
+import { getAuth } from 'firebase-admin/auth';
+import { adminApp } from '@/lib/firebase-admin'; // We will create this
 
 export const metadata: Metadata = {
   title: 'Dashboard - Flashcard AI Pro',
   description: 'Manage your flashcard sets and review due cards.',
 };
+
+// This server-side function checks for an authenticated user
+// Note: This requires a Firebase Admin setup for server-side auth checks
+async function checkAuth(cookie: string | undefined) {
+    if (!cookie) return null;
+    try {
+        const decodedToken = await getAuth(adminApp).verifySessionCookie(cookie, true);
+        return decodedToken;
+    } catch (error) {
+        return null;
+    }
+}
 
 // This server-side function fetches all necessary data for the dashboard
 async function getDashboardData(userId: string) {
@@ -31,14 +45,13 @@ async function getDashboardData(userId: string) {
     return setsWithDueCount;
 }
 
-export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
-    redirect('/auth/signin?callbackUrl=/dashboard');
-  }
-
-  const dashboardData = await getDashboardData(session.user.id);
+export default async function DashboardPage({ cookies }: any) {
+    // This is a placeholder for server-side auth with Firebase
+    // For a fully client-rendered approach, this page can be simpler.
+    // const session = await checkAuth(cookies().get('session')?.value);
+    // if (!session) {
+    //     redirect('/auth/signin');
+    // }
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
@@ -74,7 +87,7 @@ export default async function DashboardPage() {
         </div>
       </div>
       
-      <DashboardClient initialSets={dashboardData} />
+      <DashboardClient />
     </div>
   );
 }

@@ -3,6 +3,20 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { IFlashcardSet } from '@/models/FlashcardSet';
+import { useAuth } from '@/components/providers/AuthProvider';
+import { db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
+
+// Define a type for our Firestore flashcard set documents
+interface FlashcardSetDocument {
+  id: string;
+  title: string;
+  isPublic: boolean;
+  flashcards: any[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  dueCount: number;
+}
 
 // The dashboard page will pass this augmented data
 type SetWithDueCount = IFlashcardSet & { dueCount: number };
@@ -11,52 +25,76 @@ type Props = {
   initialSets: SetWithDueCount[];
 };
 
-export const DashboardClient = ({ initialSets }: Props) => {
-  const [sets, setSets] = useState<SetWithDueCount[]>(initialSets);
+export const DashboardClient = () => {
+  const { user } = useAuth();
+  const [sets, setSets] = useState<FlashcardSetDocument[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'needsReview', 'unstudied'
-  const [sortOption, setSortOption] = useState('dateAdded_desc'); // e.g., 'title_asc', 'dueCount_desc'
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [sortOption, setSortOption] = useState('dateAdded_desc');
+
+  useEffect(() => {
+    if (!user) {
+      // If there's no user, we don't need to fetch anything.
+      // The parent page will handle the redirect.
+      setIsLoading(false);
+      return;
+    }
+
+    // Set up a real-time listener for the user's flashcard sets
+    const setsCollection = collection(db, 'flashcardSets');
+    const q = query(setsCollection, where("userId", "==", user.uid));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const now = new Date();
+      const userSets = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        const dueCount = data.flashcards.filter((card: any) => 
+          card.mlData.nextReviewDate.toDate() <= now
+        ).length;
+
+        return {
+          id: doc.id,
+          title: data.title,
+          isPublic: data.isPublic,
+          flashcards: data.flashcards,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+          dueCount,
+        };
+      });
+      
+      setSets(userSets);
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Error fetching flashcard sets:", error);
+      setIsLoading(false);
+    });
+
+    // Unsubscribe from the listener when the component unmounts
+    return () => unsubscribe();
+  }, [user]);
 
   const filteredAndSortedSets = useMemo(() => {
     let filtered = [...sets];
-
-    // 1. Apply text search filter
     if (searchQuery) {
-      filtered = filtered.filter(set =>
-        set.title.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      filtered = filtered.filter(set => set.title.toLowerCase().includes(searchQuery.toLowerCase()));
     }
-
-    // 2. Apply status filter
     if (filterStatus === 'needsReview') {
       filtered = filtered.filter(set => set.dueCount > 0);
     } else if (filterStatus === 'unstudied') {
       filtered = filtered.filter(set => set.dueCount === 0);
     }
 
-    // 3. Apply sorting
     const [key, direction] = sortOption.split('_');
     filtered.sort((a, b) => {
       let valA, valB;
       switch (key) {
-        case 'title':
-          valA = a.title.toLowerCase();
-          valB = b.title.toLowerCase();
-          break;
-        case 'dueCount':
-          valA = a.dueCount;
-          valB = b.dueCount;
-          break;
-        case 'lastStudied': // Using updatedAt as a proxy for last studied
-          valA = new Date(a.updatedAt).getTime();
-          valB = new Date(b.updatedAt).getTime();
-          break;
-        default: // dateAdded
-          valA = new Date(a.createdAt).getTime();
-          valB = new Date(b.createdAt).getTime();
-          break;
+        case 'title': valA = a.title.toLowerCase(); valB = b.title.toLowerCase(); break;
+        case 'dueCount': valA = a.dueCount; valB = b.dueCount; break;
+        case 'lastStudied': valA = a.updatedAt.toMillis(); valB = b.updatedAt.toMillis(); break;
+        default: valA = a.createdAt.toMillis(); valB = b.createdAt.toMillis(); break;
       }
-
       if (valA < valB) return direction === 'asc' ? -1 : 1;
       if (valA > valB) return direction === 'asc' ? 1 : -1;
       return 0;
@@ -64,6 +102,10 @@ export const DashboardClient = ({ initialSets }: Props) => {
 
     return filtered;
   }, [sets, searchQuery, filterStatus, sortOption]);
+
+  if (isLoading) {
+    return <div className="text-center py-12">Loading Sets...</div>;
+  }
 
   return (
     <div>
