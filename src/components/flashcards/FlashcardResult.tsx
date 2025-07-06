@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { IFlashcard } from '@/models/FlashcardSet';
+import { collection, addDoc, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 type Props = {
     flashcards: IFlashcard[],
@@ -12,6 +13,7 @@ type Props = {
 }
 
 export const FlashcardResult = ({ flashcards, initialTitle, source, onSaveSuccess }: Props) => {
+    const { user } = useAuth();
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -19,21 +21,62 @@ export const FlashcardResult = ({ flashcards, initialTitle, source, onSaveSucces
 
     const handleSaveSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!user) {
+            setError("You must be logged in to save a set.");
+            return;
+        }
         setIsSaving(true);
         setError(null);
         setSuccessMessage(null);
 
         try {
-            const response = await fetch('/api/flashcard-sets', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: setTitle, flashcards, source }),
+            // Find or create a default user profile in Firestore
+            const profilesCollection = collection(db, 'users', user.uid, 'profiles');
+            const q = query(profilesCollection, where("isDefault", "==", true));
+            const querySnapshot = await getDocs(q);
+            
+            let profileId: string;
+
+            if (querySnapshot.empty) {
+                // No default profile, create one
+                const newProfileRef = doc(profilesCollection);
+                await setDoc(newProfileRef, {
+                    profileName: 'Default Profile',
+                    isDefault: true,
+                    userId: user.uid,
+                    createdAt: serverTimestamp(),
+                });
+                profileId = newProfileRef.id;
+            } else {
+                profileId = querySnapshot.docs[0].id;
+            }
+
+            // Add the new flashcard set to the top-level 'flashcardSets' collection
+            await addDoc(collection(db, "flashcardSets"), {
+                userId: user.uid,
+                profileId: profileId,
+                title: setTitle,
+                flashcards: flashcards.map(card => ({
+                    ...card,
+                    // Initialize ML data for new cards
+                    mlData: {
+                        easinessFactor: 2.5,
+                        interval: 0,
+                        repetitions: 0,
+                        nextReviewDate: new Date(),
+                    }
+                })),
+                source: source,
+                isPublic: false, // Default to private
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
             });
-            if (!response.ok) throw new Error(await response.text() || 'Failed to save the set.');
+
             setSuccessMessage('Flashcard set saved successfully!');
-            setTimeout(() => onSaveSuccess(), 2000); // Call parent callback after a delay
+            setTimeout(() => onSaveSuccess(), 2000);
         } catch (err: any) {
-            setError(err.message);
+            setError(err.message || 'An unexpected error occurred while saving.');
+            console.error(err);
         } finally {
             setIsSaving(false);
         }

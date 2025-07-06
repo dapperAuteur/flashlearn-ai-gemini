@@ -2,6 +2,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@/components/providers/AuthProvider';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { PromptForm } from '@/components/forms/PromptForm';
 import { YouTubeForm } from '@/components/forms/YouTubeForm';
 import { PdfForm } from '@/components/forms/PdfForm';
