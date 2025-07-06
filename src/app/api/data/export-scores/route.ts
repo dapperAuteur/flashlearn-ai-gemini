@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { adminAuth, adminDb } from '@/lib/firebase/firebase-admin';
 import { Parser } from 'json2csv';
 import { IStudyAnalytics } from '@/types'; // Import the centralized type
 

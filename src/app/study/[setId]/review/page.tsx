@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase/firebase';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { StudySession } from '@/components/study/StudySession';
 import Link from 'next/link';

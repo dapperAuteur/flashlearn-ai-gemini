@@ -1,84 +1,64 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/mongodb';
-import FlashcardSet from '@/models/FlashcardSet';
-import Profile from '@/models/Profile';
-import User from '@/models/User';
+import { adminDb, verifyIdToken } from '@/lib/firebase/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
-// GET handler to fetch all flashcard sets for a user
-export async function GET() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user || !session.user?.id) {
-    return new NextResponse('Unauthorized', { status: 401 });
-  }
-
+// POST: Create a new flashcard set
+export async function POST(request: Request) {
   try {
-    await dbConnect();
+    const decodedToken = await verifyIdToken(request.headers);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = decodedToken.uid;
 
-    // Find all profiles belonging to the user
-    const userProfiles = await Profile.find({ user: session.user?.id });
-    const profileIds = userProfiles.map(p => p._id);
+    const body = await request.json();
+    const { title, description, flashcards } = body;
 
-    // Find all sets linked to those profiles
-    const sets = await FlashcardSet.find({ profile: { $in: profileIds } }).sort({ createdAt: -1 });
+    if (!title || !flashcards || !Array.isArray(flashcards)) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
 
-    return NextResponse.json(sets);
+    const newSet = {
+      userId,
+      title,
+      description: description || '',
+      flashcards,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
 
+    const docRef = await adminDb.collection('flashcard-sets').add(newSet);
+
+    return NextResponse.json({ id: docRef.id, ...newSet }, { status: 201 });
   } catch (error) {
-    console.error('GET_FLASHCARD_SETS_ERROR', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    console.error('Error creating flashcard set:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-
-// POST handler to create a new flashcard set
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user || !session.user?.id) {
-    return new NextResponse('Unauthorized', { status: 401 });
-  }
-
+// GET: Get all flashcard sets for the authenticated user
+export async function GET(request: Request) {
   try {
-    const { title, flashcards } = await req.json();
+    const decodedToken = await verifyIdToken(request.headers);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = decodedToken.uid;
 
-    if (!title || !flashcards || !Array.isArray(flashcards) || flashcards.length === 0) {
-      return new NextResponse('Title and flashcards are required', { status: 400 });
+    const setsSnapshot = await adminDb.collection('flashcard-sets').where('userId', '==', userId).get();
+
+    if (setsSnapshot.empty) {
+      return NextResponse.json([], { status: 200 });
     }
 
-    await dbConnect();
+    const sets = setsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
 
-    // Find the user's first profile, or create a default one if none exists.
-    let userProfile = await Profile.findOne({ user: session.user?.id });
-
-    if (!userProfile) {
-      userProfile = new Profile({
-        user: session.user?.id,
-        profileName: 'Default Profile', // Create a default profile name
-      });
-      await userProfile.save();
-
-      // Also link this new profile back to the user document
-      await User.findByIdAndUpdate(session.user?.id, {
-        $push: { profiles: userProfile._id },
-      });
-    }
-
-    const newSet = new FlashcardSet({
-      profile: userProfile._id,
-      title,
-      flashcards,
-      source: 'Prompt', // Since this comes from the AI generator
-    });
-
-    await newSet.save();
-
-    return NextResponse.json(newSet, { status: 201 });
-
+    return NextResponse.json(sets, { status: 200 });
   } catch (error) {
-    console.error('SAVE_FLASHCARD_SET_ERROR', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    console.error('Error fetching flashcard sets:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

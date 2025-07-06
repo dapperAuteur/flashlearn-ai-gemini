@@ -1,100 +1,52 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/mongodb';
-import StudyAnalytics from '@/models/StudyAnalytics';
-import User from '@/models/User';
-import FlashcardSet from '@/models/FlashcardSet';
-import { subDays } from 'date-fns';
+import { adminDb, adminAuth, verifyIdToken } from '@/lib/firebase/firebase-admin';
 
-const formatUserName = (firstName: string, lastName: string) => {
-    if (!firstName) return "Anonymous";
-    const lastInitial = lastName ? `${lastName.charAt(0)}.` : '';
-    return `${firstName} ${lastInitial}`;
-};
-
-// Helper to calculate stats for a given user's analytics for a specific period
-const calculateUserStatsForPeriod = (analytics: any, days: number) => {
-    const now = new Date();
-    const cutoff = subDays(now, days);
-    
-    const relevantHistory = analytics.performanceHistory.filter((h: any) => new Date(h.date) >= cutoff);
-
-    // As a proxy, we count history entries as "correct answers" in the period
-    const totalCorrect = relevantHistory.length; 
-    const averageAccuracy = relevantHistory.length > 0
-        ? relevantHistory.reduce((sum: number, h: any) => sum + h.accuracy, 0) / relevantHistory.length
-        : 0;
-        
-    return { totalCorrect, averageAccuracy };
-};
-
-export async function GET(
-  _request: Request,
-  { params }: { params: { setId: string } }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 });
-
+// GET: Fetch the leaderboard for a specific flashcard set
+export async function GET(request: Request, { params }: { params: { setId: string } }) {
   try {
-    const { setId } = await params;
-    await dbConnect();
+    // While leaderboards can be public, we'll protect the route to prevent abuse.
+    const decodedToken = await verifyIdToken(request.headers);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const { setId } = params;
 
-    const set = await FlashcardSet.findById(setId).select('title').lean();
-    if (!set) {
-        return new NextResponse('Set not found', { status: 404 });
+    // 1. Query analytics for the given set, ordering by score.
+    const analyticsSnapshot = await adminDb
+      .collection('study-analytics')
+      .where('setId', '==', setId)
+      .orderBy('setPerformance.averageScore', 'desc')
+      .limit(20) // Let's cap the leaderboard at the top 20 for performance
+      .get();
+
+    if (analyticsSnapshot.empty) {
+      return NextResponse.json([], { status: 200 }); // Return an empty array if no one has studied this set
     }
 
-    const analyticsForSet = await StudyAnalytics.find({ set: setId })
-        .populate({
-            path: 'profile',
-            populate: { path: 'user', select: 'firstName lastName' }
-        })
-        .lean();
+    // 2. Get the user IDs from the analytics documents
+    const userIds = analyticsSnapshot.docs.map(doc => doc.data().userId);
 
-    const userData = analyticsForSet.map(a => {
-        const user = (a.profile as any).user;
-        const overallCorrect = a.cardPerformance.reduce((sum, p) => sum + p.correctCount, 0);
+    // 3. Fetch the user data for the top performers in a single batch
+    const userRecords = await adminAuth.getUsers(userIds.map(uid => ({ uid })));
 
-        return {
-            userId: user._id.toString(),
-            name: formatUserName(user.firstName, user.lastName),
-            daily: calculateUserStatsForPeriod(a, 1),
-            weekly: calculateUserStatsForPeriod(a, 7),
-            monthly: calculateUserStatsForPeriod(a, 30),
-            overall: { totalCorrect: overallCorrect, averageAccuracy: a.setPerformance.averageScore },
-        };
+    // 4. Map user data to their scores
+    const leaderboard = analyticsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      const user = userRecords.users.find(u => u.uid === data.userId);
+      
+      return {
+        userId: data.userId,
+        displayName: user?.displayName || 'Anonymous', // Use displayName from Firebase Auth
+        photoURL: user?.photoURL || null,
+        score: data.setPerformance.averageScore,
+      };
     });
 
-    const generateLeaderboard = (metric: 'totalCorrect' | 'averageAccuracy', period: 'daily' | 'weekly' | 'monthly' | 'overall') => {
-        const sorted = [...userData].sort((a, b) => b[period][metric] - a[period][metric]);
-        const top10 = sorted.slice(0, 10).map((u, i) => ({ ...u, rank: i + 1 }));
-        const currentUserRank = sorted.findIndex(u => u.userId === session.user.id) + 1;
-        const currentUserData = { ...userData.find(u => u.userId === session.user.id), rank: currentUserRank };
-        return { top10, currentUser: currentUserData };
-    };
-
-    const leaderboards = {
-        setTitle: set.title,
-        percentage: {
-            daily: generateLeaderboard('averageAccuracy', 'daily'),
-            weekly: generateLeaderboard('averageAccuracy', 'weekly'),
-            monthly: generateLeaderboard('averageAccuracy', 'monthly'),
-            overall: generateLeaderboard('averageAccuracy', 'overall'),
-        },
-        score: {
-            daily: generateLeaderboard('totalCorrect', 'daily'),
-            weekly: generateLeaderboard('totalCorrect', 'weekly'),
-            monthly: generateLeaderboard('totalCorrect', 'monthly'),
-            overall: generateLeaderboard('totalCorrect', 'overall'),
-        }
-    };
-
-    return NextResponse.json(leaderboards);
+    return NextResponse.json(leaderboard, { status: 200 });
 
   } catch (error) {
-    console.error('PER_SET_LEADERBOARD_ERROR', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    console.error(`Error fetching leaderboard for set ${params.setId}:`, error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

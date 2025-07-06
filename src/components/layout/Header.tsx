@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Menu, Transition } from '@headlessui/react';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase/firebase';
 import { signOut } from 'firebase/auth';
 
 function classNames(...classes: string[]) {

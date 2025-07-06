@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { adminAuth, adminDb } from '@/lib/firebase/firebase-admin';
 import { calculateSM2 } from '@/lib/sm2';
 import { FieldValue } from 'firebase-admin/firestore';
 

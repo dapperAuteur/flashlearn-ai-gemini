@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { adminAuth, adminDb } from '@/lib/firebase/firebase-admin';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { app } from '@/lib/firebase'; // Use client-side app for storage operations
+import { app } from '@/lib/firebase/firebase'; // Use client-side app for storage operations
 
 const storage = getStorage(app);
 

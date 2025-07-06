@@ -2,7 +2,7 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from '@/lib/firebase'; // Note the alias path works with src directory
+import { auth } from '@/lib/firebase/firebase'; // Note the alias path works with src directory
 
 // Create a context for the auth state
 type AuthContextType = {

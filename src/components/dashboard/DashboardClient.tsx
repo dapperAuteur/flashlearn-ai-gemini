@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { IFlashcardSet } from '@/types';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { db } from '@/lib/firebase';
+import { db } from '@/lib/firebase/firebase';
 import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 
 // Define a type for our Firestore flashcard set documents

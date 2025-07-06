@@ -1,83 +1,92 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/mongodb';
-import FlashcardSet from '@/models/FlashcardSet';
-import Profile from '@/models/Profile';
-import StudyAnalytics from '@/models/StudyAnalytics';
-import { calculateSM2 } from '@/lib/sm2';
+import { adminDb, verifyIdToken } from '@/lib/firebase/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
-const SESSION_TIMEOUT_MINUTES = 30;
-
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 });
-
+// POST: Submit the results of a flashcard review session
+export async function POST(request: Request) {
   try {
-    const { setId, cardId, quality } = await req.json();
-    if (!setId || !cardId || quality === undefined) {
-      return new NextResponse('Missing required fields', { status: 400 });
+    const decodedToken = await verifyIdToken(request.headers);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = decodedToken.uid;
+
+    const body = await request.json();
+    const { setId, reviewResults } = body; // reviewResults: [{ cardId: string, correct: boolean }]
+
+    if (!setId || !reviewResults || !Array.isArray(reviewResults)) {
+      return NextResponse.json({ error: 'Missing or invalid required fields' }, { status: 400 });
     }
 
-    await dbConnect();
+    const analyticsDocRef = adminDb.collection('study-analytics').doc(`${userId}_${setId}`);
 
-    const set = await FlashcardSet.findById(setId);
-    if (!set) return new NextResponse('Set not found', { status: 404 });
+    // Use a transaction to safely update the analytics document
+    await adminDb.runTransaction(async (transaction) => {
+      const analyticsDoc = await transaction.get(analyticsDocRef);
+      
+      const updates: { [key: string]: any } = {};
+      let totalCorrectUpdates = 0;
+      let totalIncorrectUpdates = 0;
 
-    const profile = await Profile.findById(set.profile);
-    if (profile?.user.toString() !== session.user.id) {
-      return new NextResponse('Forbidden', { status: 403 });
-    }
+      reviewResults.forEach(result => {
+        const { cardId, correct } = result;
+        if (correct) {
+          updates[`cardPerformance.${cardId}.correctCount`] = FieldValue.increment(1);
+          totalCorrectUpdates++;
+        } else {
+          updates[`cardPerformance.${cardId}.incorrectCount`] = FieldValue.increment(1);
+          totalIncorrectUpdates++;
+        }
+      });
 
-    const card = set.flashcards.id(cardId);
-    if (!card) return new NextResponse('Card not found in set', { status: 404 });
+      if (!analyticsDoc.exists) {
+        // If the document doesn't exist, we must create it with initial values.
+        // FieldValue.increment() requires the field to exist.
+        const initialCardPerformance = reviewResults.reduce((acc, result) => {
+            acc[result.cardId] = {
+                correctCount: result.correct ? 1 : 0,
+                incorrectCount: result.correct ? 0 : 1,
+            };
+            return acc;
+        }, {} as { [key: string]: { correctCount: number, incorrectCount: number }});
 
-    // --- Spaced Repetition Logic ---
-    card.mlData = calculateSM2({ ...card.mlData, quality });
-    await set.save();
+        transaction.set(analyticsDocRef, {
+            userId,
+            setId,
+            cardPerformance: initialCardPerformance,
+            setPerformance: {
+                totalStudySessions: 1, // First session
+                totalTimeStudied: 0, // Time is updated via the main analytics route
+                totalCorrect: totalCorrectUpdates,
+                totalIncorrect: totalIncorrectUpdates,
+                averageScore: (totalCorrectUpdates / (totalCorrectUpdates + totalIncorrectUpdates)) * 100,
+            },
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+        });
 
-    // --- Analytics Logging Logic ---
-    let analytics = await StudyAnalytics.findOne({ profile: profile._id, set: setId });
-    if (!analytics) {
-      analytics = new StudyAnalytics({ profile: profile._id, set: setId });
-    }
+      } else {
+        // Document exists, so we can safely increment
+        const currentData = analyticsDoc.data()!;
+        const currentTotalCorrect = currentData.setPerformance?.totalCorrect || 0;
+        const currentTotalIncorrect = currentData.setPerformance?.totalIncorrect || 0;
 
-    // Check if this is a new study session
-    const now = new Date();
-    const lastSession = new Date(analytics.setPerformance.lastSessionStarted);
-    const minutesSinceLastSession = (now.getTime() - lastSession.getTime()) / (1000 * 60);
+        const newTotalCorrect = currentTotalCorrect + totalCorrectUpdates;
+        const newTotalIncorrect = currentTotalIncorrect + totalIncorrectUpdates;
+        
+        updates['setPerformance.totalCorrect'] = FieldValue.increment(totalCorrectUpdates);
+        updates['setPerformance.totalIncorrect'] = FieldValue.increment(totalIncorrectUpdates);
+        updates['setPerformance.averageScore'] = (newTotalCorrect / (newTotalCorrect + newTotalIncorrect)) * 100;
+        updates['updatedAt'] = FieldValue.serverTimestamp();
+        
+        transaction.update(analyticsDocRef, updates);
+      }
+    });
 
-    if (minutesSinceLastSession > SESSION_TIMEOUT_MINUTES) {
-        analytics.setPerformance.totalStudySessions += 1;
-    }
-    analytics.setPerformance.lastSessionStarted = now;
-
-    let cardPerf = analytics.cardPerformance.find(p => p.cardId.toString() === cardId);
-    if (!cardPerf) {
-      analytics.cardPerformance.push({ cardId, correctCount: 0, incorrectCount: 0 });
-      cardPerf = analytics.cardPerformance[analytics.cardPerformance.length - 1];
-    }
-
-    if (quality >= 3) {
-      cardPerf.correctCount += 1;
-    } else {
-      cardPerf.incorrectCount += 1;
-    }
-    
-    const totalCorrect = analytics.cardPerformance.reduce((sum, p) => sum + p.correctCount, 0);
-    const totalIncorrect = analytics.cardPerformance.reduce((sum, p) => sum + p.incorrectCount, 0);
-    const totalAttempts = totalCorrect + totalIncorrect;
-    const newAccuracy = totalAttempts > 0 ? (totalCorrect / totalAttempts) * 100 : 0;
-    
-    analytics.setPerformance.averageScore = newAccuracy;
-    analytics.performanceHistory.push({ date: now, accuracy: newAccuracy });
-
-    await analytics.save();
-
-    return NextResponse.json(card);
-
+    return NextResponse.json({ message: 'Review recorded successfully' }, { status: 200 });
   } catch (error) {
-    console.error('REVIEW_CARD_ERROR', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    console.error('Error recording review:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

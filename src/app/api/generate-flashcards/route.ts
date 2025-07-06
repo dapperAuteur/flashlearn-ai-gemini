@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { verifyIdToken } from '@/lib/firebase/firebase-admin';
 import { FLASHCARD_MAX, FLASHCARD_MIN, MODEL } from '@/lib/constants';
 
 //}
@@ -7,6 +8,12 @@ import { FLASHCARD_MAX, FLASHCARD_MIN, MODEL } from '@/lib/constants';
 
 export async function POST(req: Request) {
   try {
+    // 1. Authenticate the user
+    const decodedToken = await verifyIdToken(request.headers);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { prompt } = await req.json();
 
     if (!prompt) {
@@ -44,7 +51,7 @@ export async function POST(req: Request) {
     // Attempt to parse the JSON response from the AI
     const flashcards = JSON.parse(jsonText);
 
-    return NextResponse.json({ flashcards });
+    return NextResponse.json(flashcards, { status: 200 });
 
   } catch (error) {
     console.error('FLASHCARD_GENERATION_ERROR', error);

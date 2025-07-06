@@ -1,104 +1,103 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/mongodb';
-import FlashcardSet from '@/models/FlashcardSet';
-import Profile from '@/models/Profile';
-import User from '@/models/User';
+import { NextResponse } from 'next/server';
+import { adminDb, verifyIdToken } from '@/lib/firebase/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
-// GET handler (remains the same)
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: { setId: string } }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 });
-
+// GET: Retrieve a single flashcard set
+export async function GET(request: Request, { params }: { params: { setId: string } }) {
   try {
+    const decodedToken = await verifyIdToken(request.headers);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = decodedToken.uid;
     const { setId } = params;
-    await dbConnect();
-    const set = await FlashcardSet.findById(setId);
-    if (!set) return new NextResponse('Flashcard set not found.', { status: 404 });
 
-    const setProfile = await Profile.findById(set.profile);
-    if (!setProfile || setProfile.user.toString() !== session.user.id) {
-      return new NextResponse('Forbidden', { status: 403 });
+    const setDocRef = adminDb.collection('flashcard-sets').doc(setId);
+    const setDoc = await setDocRef.get();
+
+    if (!setDoc.exists) {
+      return NextResponse.json({ error: 'Flashcard set not found' }, { status: 404 });
     }
-    return NextResponse.json(set);
+
+    const setData = setDoc.data();
+
+    // Ownership check: Ensure the user owns this set
+    if (setData?.userId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    return NextResponse.json({ id: setDoc.id, ...setData }, { status: 200 });
   } catch (error) {
-    console.error('[GET_FLASHCARD_SET_BY_ID]', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    console.error(`Error fetching flashcard set ${params.setId}:`, error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-// PUT handler for updating a flashcard set (now includes isPublic)
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { setId: string } }
-) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 });
-
+// PUT: Update an existing flashcard set
+export async function PUT(request: Request, { params }: { params: { setId: string } }) {
   try {
-    const { setId } = await params;
-    const { title, flashcards, isPublic } = await request.json();
+    const decodedToken = await verifyIdToken(request.headers);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = decodedToken.uid;
+    const { setId } = params;
+    const body = await request.json();
 
-    if (!title || !flashcards || !Array.isArray(flashcards) || isPublic === undefined) {
-        return new NextResponse('Title, flashcards array, and isPublic status are required', { status: 400 });
+    const setDocRef = adminDb.collection('flashcard-sets').doc(setId);
+    const setDoc = await setDocRef.get();
+
+    if (!setDoc.exists) {
+      return NextResponse.json({ error: 'Flashcard set not found' }, { status: 404 });
     }
 
-    await dbConnect();
-    const set = await FlashcardSet.findById(setId);
-    if (!set) return new NextResponse('Set not found', { status: 404 });
+    // Ownership check
+    if (setDoc.data()?.userId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
-    const profile = await Profile.findById(set.profile);
-    if (profile?.user.toString() !== session.user.id) return new NextResponse('Forbidden', { status: 403 });
+    const { title, description, flashcards } = body;
+    const updateData = {
+      ...body,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
 
-    set.title = title;
-    set.flashcards = flashcards;
-    set.isPublic = isPublic;
-    await set.save();
+    await setDocRef.update(updateData);
 
-    return NextResponse.json(set);
-
+    return NextResponse.json({ id: setId, ...updateData }, { status: 200 });
   } catch (error) {
-    console.error('[UPDATE_FLASHCARD_SET]', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    console.error(`Error updating flashcard set ${params.setId}:`, error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-// DELETE handler for "soft deleting" a set
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: { setId: string } }
-) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return new NextResponse('Unauthorized', { status: 401 });
-
-    try {
-        const { setId } = params;
-        await dbConnect();
-        
-        const set = await FlashcardSet.findById(setId);
-        if (!set) return new NextResponse('Set not found', { status: 404 });
-
-        // Verify ownership before deleting
-        const profile = await Profile.findById(set.profile);
-        if (profile?.user.toString() !== session.user.id) {
-            return new NextResponse('Forbidden', { status: 403 });
-        }
-
-        // Instead of deleting, we disassociate the set from the user's profile
-        // This makes it "deleted" from the user's library but keeps it for public access if needed.
-        await FlashcardSet.findByIdAndUpdate(setId, { $unset: { profile: "" } });
-        
-        // Also remove it from the user's profile array for consistency
-        await User.findOneAndUpdate({ _id: session.user.id }, { $pull: { profiles: profile._id } });
-
-        return new NextResponse(null, { status: 204 }); // 204 No Content for successful deletion
-
-    } catch (error) {
-        console.error('[DELETE_FLASHCARD_SET]', error);
-        return new NextResponse('Internal Server Error', { status: 500 });
+// DELETE: Delete a flashcard set
+export async function DELETE(request: Request, { params }: { params: { setId: string } }) {
+  try {
+    const decodedToken = await verifyIdToken(request.headers);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const userId = decodedToken.uid;
+    const { setId } = params;
+
+    const setDocRef = adminDb.collection('flashcard-sets').doc(setId);
+    const setDoc = await setDocRef.get();
+
+    if (!setDoc.exists) {
+      return NextResponse.json({ error: 'Flashcard set not found' }, { status: 404 });
+    }
+
+    // Ownership check
+    if (setDoc.data()?.userId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    await setDocRef.delete();
+
+    return new NextResponse(null, { status: 204 }); // 204 No Content is standard for successful deletion
+  } catch (error) {
+    console.error(`Error deleting flashcard set ${params.setId}:`, error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
 }

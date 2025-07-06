@@ -1,52 +1,50 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/mongodb';
-import FlashcardSet from '@/models/FlashcardSet';
-import Profile from '@/models/Profile';
+import { adminDb, verifyIdToken } from '@/lib/firebase/firebase-admin';
 
-// This endpoint fetches all flashcards that are due for review.
-export async function GET() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
-    return new NextResponse('Unauthorized', { status: 401 });
-  }
-
+// GET: Fetch flashcards that are due for review in a specific set
+export async function GET(request: Request) {
   try {
-    await dbConnect();
+    const decodedToken = await verifyIdToken(request.headers);
+    if (!decodedToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = decodedToken.uid;
 
-    // Find all profiles belonging to the user
-    const userProfiles = await Profile.find({ user: session.user.id });
-    const profileIds = userProfiles.map(p => p._id);
+    const { searchParams } = new URL(request.url);
+    const setId = searchParams.get('setId');
 
-    // Find all sets linked to those profiles
-    const sets = await FlashcardSet.find({ profile: { $in: profileIds } });
-
-    const now = new Date();
-    const dueCards = [];
-
-    // Iterate through sets and their flashcards to find due ones
-    for (const set of sets) {
-      for (const card of set.flashcards) {
-        if (card.mlData.nextReviewDate <= now) {
-          // Augment the card data with its parent set's ID and title
-          dueCards.push({
-            ...card.toObject(),
-            setId: set._id,
-            setTitle: set.title,
-          });
-        }
-      }
+    if (!setId) {
+      return NextResponse.json({ error: 'setId query parameter is required' }, { status: 400 });
     }
 
-    // Sort due cards by their review date, oldest first
-    dueCards.sort((a, b) => new Date(a.mlData.nextReviewDate).getTime() - new Date(b.mlData.nextReviewDate).getTime());
+    // 1. Fetch the flashcard set to get all cards
+    const setDocRef = adminDb.collection('flashcard-sets').doc(setId);
+    const setDoc = await setDocRef.get();
 
-    return NextResponse.json(dueCards);
+    if (!setDoc.exists || setDoc.data()?.userId !== userId) {
+      return NextResponse.json({ error: 'Flashcard set not found or access denied' }, { status: 404 });
+    }
+    const allFlashcards = setDoc.data()?.flashcards || [];
+
+    // 2. Fetch the analytics for this user and set
+    const analyticsDocRef = adminDb.collection('study-analytics').doc(`${userId}_${setId}`);
+    const analyticsDoc = await analyticsDocRef.get();
+    const cardPerformance = analyticsDoc.exists ? analyticsDoc.data()?.cardPerformance : {};
+
+    // 3. Determine which cards are "due"
+    const dueFlashcards = allFlashcards.filter((card: { id: string }) => {
+      const performance = cardPerformance?.[card.id];
+      if (!performance) {
+        return true; // Never studied before, so it's due
+      }
+      // Simple logic: due if incorrect count is greater than correct count
+      return (performance.incorrectCount || 0) > (performance.correctCount || 0);
+    });
+
+    return NextResponse.json(dueFlashcards, { status: 200 });
 
   } catch (error) {
-    console.error('GET_DUE_CARDS_ERROR', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    console.error('Error fetching due flashcards:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
