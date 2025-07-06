@@ -6,15 +6,26 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { StudySession } from '@/components/study/StudySession';
 
-// Define a type for our Firestore flashcard set documents
+// Define a type for the raw flashcard data from Firestore
+interface FirestoreFlashcard {
+  _id: string;
+  front: string;
+  back: string;
+  mlData: {
+    easinessFactor: number;
+    interval: number;
+    repetitions: number;
+    nextReviewDate: Timestamp; // Firestore Timestamp
+  };
+}
 interface FlashcardSetDocument {
   id: string;
   title: string;
   userId: string;
-  flashcards: any[];
+  flashcards: FirestoreFlashcard[];
 }
 
 export default function StudyPage() {
@@ -40,7 +51,8 @@ export default function StudyPage() {
                     const setRef = doc(db, 'flashcardSets', setId);
                     const docSnap = await getDoc(setRef);
                     if (docSnap.exists() && docSnap.data().userId === user.uid) {
-                        setSet({ id: docSnap.id, ...docSnap.data() });
+                        const data = { id: docSnap.id, ...docSnap.data() } as FlashcardSetDocument;
+                        setSet(data);
                     } else {
                         setError("Set not found or you don't have permission to view it.");
                     }
@@ -58,7 +70,15 @@ export default function StudyPage() {
     if (error) return <div className="text-center py-12 text-red-500">{error}</div>;
     if (!set) return null;
 
-    const augmentedCards = set.flashcards.map((card: any) => ({ ...card, setId: set.id }));
+    // Convert Firestore Timestamps to JS Dates before passing to the client component
+    const augmentedCards = set.flashcards.map((card) => ({
+        ...card,
+        setId: set.id,
+        mlData: {
+            ...card.mlData,
+            nextReviewDate: card.mlData.nextReviewDate.toDate(),
+        }
+    }));
 
     return (
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
