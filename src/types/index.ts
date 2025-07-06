@@ -62,3 +62,8 @@ export interface IStudyAnalytics {
         accuracy: number;
     }[];
 }
+
+export interface ISessionResult {
+  cardId: string;
+  correct: boolean;
+}

@@ -1,23 +1,42 @@
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { redirect } from 'next/navigation';
-import type { Metadata } from 'next';
+'use client'
+
+import { useEffect } from 'react';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase/firebase';
+import { useRouter } from 'next/navigation';
 import { GenerationHub } from '@/components/generation/GenerationHub';
 
-export const metadata: Metadata = {
-  title: 'AI Flashcard Generator',
-  description: 'Generate flashcards from any topic using AI.',
-};
 
-export default async function GeneratePage() {
-  const session = await getServerSession(authOptions);
+export default function GeneratePage() {
+  const [user, loadingAuth] = useAuthState(auth);
+  const router = useRouter();
+
+
+  useEffect(() => {
+    // If auth is not loading and there is no user, redirect to the login page.
+    if (!loadingAuth && !user) {
+      router.push('/login?callbackUrl=/generate');
+    }
+  }, [user, loadingAuth, router]);
+
+  if (loadingAuth) {
+    return (
+      <div className="text-center p-8">
+        <h1 className="text-xl font-semibold">Loading...</h1>
+        <p>Checking your credentials.</p>
+      </div>
+    );
+  }
+  
+
 
   // Protect the route
-  if (!session) {
+  if (!user) {
     redirect('/auth/signin?callbackUrl=/generate');
   }
 
-  return (
+  if (user) {
+    return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
       <div className="mx-auto max-w-3xl">
         <div className="text-center">
@@ -34,4 +53,6 @@ export default async function GeneratePage() {
       </div>
     </div>
   );
+  }
+  return null;
 }

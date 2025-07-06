@@ -2,7 +2,9 @@
 'use client';
 
 import { useState } from 'react';
-import { IFlashcard } from '@/models/FlashcardSet';
+import { useAuth } from '@/components/providers/AuthProvider';
+import { IFlashcard } from '@/types';
+import { db } from '@/lib/firebase/firebase';
 import { collection, addDoc, query, where, getDocs, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 type Props = {

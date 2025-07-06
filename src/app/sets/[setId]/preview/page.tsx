@@ -1,92 +1,118 @@
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { redirect } from 'next/navigation';
-import type { Metadata } from 'next';
-import dbConnect from '@/lib/mongodb';
-import FlashcardSet, { IFlashcardSet } from '@/models/FlashcardSet';
-import Profile from '@/models/Profile';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase/firebase';
 import Link from 'next/link';
 
-async function getFlashcardSet(setId: string, userId: string): Promise<IFlashcardSet | null> {
+// Define the types for our data structures
+interface Flashcard {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+interface FlashcardSet {
+  id: string;
+  title: string;
+  description: string;
+  flashcards: Flashcard[];
+}
+
+export default function PreviewSetPage() {
+  const router = useRouter();
+  const params = useParams();
+  const setId = params.setId as string;
+
+  const [user, loadingAuth] = useAuthState(auth);
+  const [set, setSet] = useState<FlashcardSet | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch the flashcard set data
+  const fetchSet = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
     try {
-        await dbConnect();
-        const set = await FlashcardSet.findById(setId);
-        if (!set) return null;
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/flashcard-sets/${setId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
-        const profile = await Profile.findById(set.profile);
-        if (profile?.user.toString() !== userId) return null;
-        
-        return JSON.parse(JSON.stringify(set));
-    } catch (error) {
-        console.error(error);
-        return null;
+      if (!response.ok) {
+        throw new Error('Failed to fetch flashcard set. You may not have permission.');
+      }
+      const data = await response.json();
+      setSet(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
-}
+  }, [user, setId]);
 
-export async function generateMetadata({ params }: { params: { setId: string } }): Promise<Metadata> {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) return { title: 'Preview Set' };
-    
-    const set = await getFlashcardSet(params.setId, session.user.id);
-    return {
-        title: set ? `Previewing: ${set.title}` : 'Set not found',
-    };
-}
-
-export default async function PreviewSetPage({ params }: { params: { setId: string } }) {
-    const session = await getServerSession(authOptions);
-    const { setId } = params;
-
-    if (!session?.user?.id) {
-        redirect(`/auth/signin?callbackUrl=/sets/${setId}/preview`);
+  useEffect(() => {
+    if (!loadingAuth && user) {
+      fetchSet();
+    } else if (!loadingAuth && !user) {
+      router.push('/login');
     }
+  }, [user, loadingAuth, fetchSet, router]);
 
-    const flashcardSet = await getFlashcardSet(setId, session.user.id);
+  if (isLoading || loadingAuth) {
+    return <div className="text-center p-8">Loading...</div>;
+  }
 
-    if (!flashcardSet) {
-        return (
-            <div className="text-center py-12">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Flashcard Set Not Found</h1>
-                <p className="text-gray-600 dark:text-gray-400">This set may not exist or you may not have permission to view it.</p>
-            </div>
-        );
-    }
+  if (error) {
+    return <div className="text-center p-8 text-red-500">Error: {error}</div>;
+  }
 
-    return (
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
-            <div className="flex justify-between items-start mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-                        {flashcardSet.title}
-                    </h1>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        {flashcardSet.flashcards.length} cards
-                    </p>
-                </div>
-                <Link 
-                    href={`/study/${flashcardSet._id}`}
-                    className="rounded-md bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
-                >
-                    Study This Set
-                </Link>
-            </div>
+  if (!set) {
+    return <div className="text-center p-8">Flashcard set not found.</div>;
+  }
 
-            <div className="flow-root">
-                <ul role="list" className="-my-8 divide-y divide-gray-200 dark:divide-gray-700">
-                    {flashcardSet.flashcards.map((card, index) => (
-                        <li key={card._id || index} className="py-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                                <div>
-                                    <p className="text-lg font-medium text-gray-900 dark:text-white">{card.front}</p>
-                                </div>
-                                <div className="mt-4 md:mt-0">
-                                    <p className="text-lg text-gray-600 dark:text-gray-300">{card.back}</p>
-                                </div>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            </div>
+  return (
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h1 className="text-3xl font-bold">{set.title}</h1>
+          <p className="text-gray-600 mt-1">{set.description}</p>
         </div>
-    );
+        <div className="flex gap-2">
+          <Link href={`/study/due?setId=${set.id}`} passHref>
+            <button className="bg-green-600 text-white font-bold py-2 px-4 rounded hover:bg-green-700">
+              Study Due Cards
+            </button>
+          </Link>
+          <Link href={`/sets/${set.id}/edit`} passHref>
+             <button className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">
+              Edit Set
+            </button>
+          </Link>
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-4">Flashcards in this Set ({set.flashcards.length})</h2>
+        <div className="space-y-4">
+          {set.flashcards.map((card, index) => (
+            <div key={card.id || index} className="p-4 border rounded-lg shadow-sm bg-white">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="font-semibold text-gray-800">Q: {card.question}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">A: {card.answer}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
