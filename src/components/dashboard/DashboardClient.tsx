@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import Link from 'next/link';
+// import Link from 'next/link';
 import { IFlashcardSet } from '@/types';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { db } from '@/lib/firebase/firebase';
@@ -22,9 +23,9 @@ interface FlashcardSetDocument {
 // The dashboard page will pass this augmented data
 type SetWithDueCount = IFlashcardSet & { dueCount: number };
 
-type Props = {
-  initialSets: SetWithDueCount[];
-};
+// type Props = {
+//   initialSets: SetWithDueCount[];
+// };
 
 export const DashboardClient = () => {
   const { user } = useAuth();

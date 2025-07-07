@@ -116,7 +116,7 @@ function StudyPageContent() {
   if (dueCards.length === 0) {
     return (
       <div className="text-center p-8">
-        <h1 className="text-2xl font-bold mb-4">You're all caught up!</h1>
+        <h1 className="text-2xl font-bold mb-4">You&apos;re all caught up!</h1>
         <p className="mb-6">There are no cards due for review in this set right now.</p>
         <button onClick={() => router.push(`/sets/${setId}/preview`)} className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">
           Back to Set

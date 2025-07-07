@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 import { adminDb, verifyIdToken } from '@/lib/firebase/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
