@@ -11,22 +11,30 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Install Dependencies
         run: npm ci
 
-      # This step builds your app, providing secrets as env vars
+      # This new step securely extracts credentials from your main service account
+      # secret and makes them available to the build step.
+      - name: Set Firebase Environment Variables for Build
+        run: |
+          echo "FIREBASE_PROJECT_ID=$(echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_AWEWS_APPS }}' | jq -r .project_id)" >> $GITHUB_ENV
+          echo "FIREBASE_CLIENT_EMAIL=$(echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_AWEWS_APPS }}' | jq -r .client_email)" >> $GITHUB_ENV
+          echo "FIREBASE_PRIVATE_KEY=$(echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_AWEWS_APPS }}' | jq -r .private_key)" >> $GITHUB_ENV
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
+        
+      # The environment variables are now available for the build command.
       - name: Build Application
         run: npm run build
-        env:
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
-          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
-      # This step deploys to Firebase
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      # The deploy step uses the full service account secret directly.
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_AWEWS_APPS }}
           channelId: live
           projectId: awews-apps
