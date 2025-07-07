@@ -47,7 +47,7 @@ export async function GET(request: Request, context: any ) {
     return NextResponse.json(leaderboard, { status: 200 });
 
   } catch (error) {
-    console.error(`Error fetching leaderboard for set ${params.setId}:`, error);
+    console.error(`Error fetching leaderboard for set ${context.params.setId}:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

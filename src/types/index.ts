@@ -10,6 +10,7 @@ export interface IFlashcardBasic {
 // Complete Flashcard structure
 export interface IFlashcard {
   id: string; // The document ID
+  _id: string; // The document ID
   front: string;
   back: string;
   mlData: {
@@ -18,11 +19,14 @@ export interface IFlashcard {
     repetitions: number;
     nextReviewDate: Date | Timestamp; // Can be a Date object or Firestore Timestamp
   };
+  createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
 }
 
 // Document structure for the 'flashcardSets' collection in Firestore
 export interface IFlashcardSet {
   id: string; // The document ID
+  _id: string; // The document ID
   userId: string;
   profileId: string;
   title: string;
@@ -36,6 +40,7 @@ export interface IFlashcardSet {
 // Document structure for the 'users' collection in Firestore
 export interface IUserProfile {
   uid: string;
+  id?: string; // The document ID
   firstName: string;
   lastName: string;
   email: string;
@@ -44,6 +49,7 @@ export interface IUserProfile {
   image?: string;
   subscriptionTier: 'Free' | 'Lifetime Learner';
   createdAt: Date | Timestamp;
+  updatedAt: Date | Timestamp;
 }
 
 // Document structure for the 'studyAnalytics' collection
@@ -68,9 +74,35 @@ export interface IStudyAnalytics {
         date: Date | Timestamp;
         accuracy: number;
     }[];
+    createdAt: Date | Timestamp;
+    updatedAt: Date | Timestamp;
 }
 
 export interface ISessionResult {
   cardId: string;
   correct: boolean;
+}
+
+// This interface represents a raw flashcard as it's stored embedded within a set in Firestore.
+// It likely uses `_id` and lacks its own timestamps.
+export interface RawFirestoreCard {
+  _id: string;
+  front: string;
+  back: string;
+  mlData: {
+    easinessFactor: number;
+    interval: number;
+    repetitions: number;
+    nextReviewDate: Timestamp;
+  };
+}
+
+// This interface represents the complete flashcard set document fetched from Firestore.
+export interface StudySetDocument {
+  id: string;
+  title: string;
+  userId: string;
+  flashcards: RawFirestoreCard[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }

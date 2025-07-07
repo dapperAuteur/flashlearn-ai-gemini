@@ -72,7 +72,7 @@ export default function AnalyticsDashboard() {
        <div className="p-6 rounded-lg bg-white dark:bg-gray-800 shadow">
         <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Performance Over Time: {mainChartData.set.title}</h2>
          <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={mainChartData.performanceHistory.map(h => ({ name: new Date(h.date).toLocaleDateString(), accuracy: h.accuracy.toFixed(2) }))}>
+          <LineChart data={mainChartData.performanceHistory.map(h => ({ name: (h.date instanceof Date ? h.date : h.date.toDate()).toLocaleDateString(), accuracy: h.accuracy.toFixed(2) }))}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" />
             <YAxis />

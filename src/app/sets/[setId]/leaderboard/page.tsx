@@ -14,7 +14,7 @@ type LeaderboardCategory = { daily: LeaderboardData; weekly: LeaderboardData; mo
 type SetLeaderboard = { setTitle: string; percentage: LeaderboardCategory; score: LeaderboardCategory; };
 
 // --- Reusable Components ---
-const ShareButton = ({ listRef, listTitle }: { listRef: React.RefObject<HTMLDivElement>, listTitle: string }) => {
+const ShareButton = ({ listRef, listTitle }: { listRef: React.RefObject<HTMLDivElement | null>, listTitle: string }) => {
     const share = async () => {
         if (!listRef.current) return;
         try {

@@ -14,7 +14,7 @@ type LeaderboardData = { top10: UserRank[]; currentUser?: UserRank; };
 type LeaderboardCategory = { daily: LeaderboardData; weekly: LeaderboardData; monthly: LeaderboardData; overall: LeaderboardData; };
 type FullLeaderboard = { percentage: LeaderboardCategory; score: LeaderboardCategory; };
 
-const ShareButton = ({ listRef, listTitle }: { listRef: React.RefObject<HTMLDivElement>, listTitle: string }) => {
+const ShareButton = ({ listRef, listTitle }: { listRef: React.RefObject<HTMLDivElement | null>, listTitle: string }) => {
     const share = async () => {
         if (!listRef.current) return;
         try {

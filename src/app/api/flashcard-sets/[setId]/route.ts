@@ -31,7 +31,7 @@ export async function GET(request: Request, context: any ) {
 
     return NextResponse.json({ id: setDoc.id, ...setData }, { status: 200 });
   } catch (error) {
-    console.error(`Error fetching flashcard set ${params.setId}:`, error);
+    console.error(`Error fetching flashcard set ${context.params.setId}:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -69,7 +69,7 @@ export async function PUT(request: Request, context: any ) {
 
     return NextResponse.json({ id: setId, ...updateData }, { status: 200 });
   } catch (error) {
-    console.error(`Error updating flashcard set ${params.setId}:`, error);
+    console.error(`Error updating flashcard set ${context.params.setId}:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -100,7 +100,7 @@ export async function DELETE(request: Request, context: any ) {
 
     return new NextResponse(null, { status: 204 }); // 204 No Content is standard for successful deletion
   } catch (error) {
-    console.error(`Error deleting flashcard set ${params.setId}:`, error);
+    console.error(`Error deleting flashcard set ${context.params.setId}:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

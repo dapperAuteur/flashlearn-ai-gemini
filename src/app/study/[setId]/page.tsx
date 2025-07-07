@@ -7,26 +7,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { db } from '@/lib/firebase/firebase';
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
-import { StudySession } from '@/components/study/StudySession';
-
-// Define a type for the raw flashcard data from Firestore
-interface FirestoreFlashcard {
-  _id: string;
-  front: string;
-  back: string;
-  mlData: {
-    easinessFactor: number;
-    interval: number;
-    repetitions: number;
-    nextReviewDate: Timestamp; // Firestore Timestamp
-  };
-}
-interface FlashcardSetDocument {
-  id: string;
-  title: string;
-  userId: string;
-  flashcards: FirestoreFlashcard[];
-}
+import { StudySession, AugmentedFlashcard } from '@/components/study/StudySession';
+import { RawFirestoreCard, StudySetDocument } from '@/types';
 
 export default function StudyPage() {
     const { user, isLoading: isAuthLoading } = useAuth();
@@ -34,7 +16,7 @@ export default function StudyPage() {
     const params = useParams();
     const setId = params.setId as string;
 
-    const [set, setSet] = useState<FlashcardSetDocument | null>(null);
+    const [set, setSet] = useState<StudySetDocument | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -51,7 +33,7 @@ export default function StudyPage() {
                     const setRef = doc(db, 'flashcardSets', setId);
                     const docSnap = await getDoc(setRef);
                     if (docSnap.exists() && docSnap.data().userId === user.uid) {
-                        const data = { id: docSnap.id, ...docSnap.data() } as FlashcardSetDocument;
+                        const data = { id: docSnap.id, ...docSnap.data() } as StudySetDocument;
                         setSet(data);
                     } else {
                         setError("Set not found or you don't have permission to view it.");
@@ -70,14 +52,19 @@ export default function StudyPage() {
     if (error) return <div className="text-center py-12 text-red-500">{error}</div>;
     if (!set) return null;
 
-    // Convert Firestore Timestamps to JS Dates before passing to the client component
-    const augmentedCards = set.flashcards.map((card) => ({
+    // Transform the raw card data into the shape expected by the StudySession component.
+    // This includes mapping _id to id, converting Timestamps, and adding parent set data.
+    const augmentedCards: AugmentedFlashcard[] = set.flashcards.map((card) => ({
         ...card,
+        id: card._id, // Map _id to id
         setId: set.id,
         mlData: {
             ...card.mlData,
             nextReviewDate: card.mlData.nextReviewDate.toDate(),
-        }
+        },
+        // Add timestamps from the parent set, as embedded cards don't have their own
+        createdAt: set.createdAt,
+        updatedAt: set.updatedAt,
     }));
 
     return (

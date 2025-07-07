@@ -6,7 +6,7 @@ import { IFlashcard } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 
-type AugmentedFlashcard = IFlashcard & { setId: string };
+export type AugmentedFlashcard = IFlashcard & { setId: string };
 
 type Props = {
   initialCards: AugmentedFlashcard[];
