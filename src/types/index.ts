@@ -106,3 +106,9 @@ export interface StudySetDocument {
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
+
+export interface ServiceAccount {
+  projectId: string;
+  clientEmail: string;
+  privateKey: string;
+}
