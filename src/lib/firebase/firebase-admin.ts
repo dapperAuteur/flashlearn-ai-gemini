@@ -2,58 +2,36 @@
 
 import * as admin from 'firebase-admin';
 
-console.log("[DEBUG] typeof FIREBASE_SERVICE_ACCOUNT_KEY:", typeof process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-console.log("[DEBUG] FIREBASE_SERVICE_ACCOUNT_KEY starts with:", process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.slice(0, 50));
-
-try {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!raw) throw new Error("Missing FIREBASE_SERVICE_ACCOUNT_KEY");
-  const parsed = JSON.parse(raw);
-  if (!parsed.project_id) throw new Error("Missing project_id in service account");
-  console.log("[✅ FIREBASE SETUP OK]");
-} catch (e) {
-  console.error("[🔥 FIREBASE INIT FAILED]", e);
-}
-
-
-
-// This service account key is a secret and should be stored securely
-// in your environment variables. It should NOT be exposed to the client.
+// Construct the service account object from individual environment variables.
+// This is more reliable than parsing a single JSON string.
 const serviceAccount = {
   projectId: process.env.FIREBASE_PROJECT_ID,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  // The private key is sensitive and should be handled carefully.
+  // The replace() call ensures that the newline characters are correctly formatted.
+  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
 };
 
-// Initialize the Firebase Admin SDK
-// We check if it's already initialized to prevent errors.
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+// Check if the required environment variables are present.
+if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
+  console.error('[🔥 FIREBASE INIT FAILED] Missing required Firebase Admin SDK environment variables.');
+  // In a production environment, you might want to throw an error to prevent the app from starting.
+  // For now, we'll log the error. The app will fail when an admin action is attempted.
+} else {
+  // Initialize the Firebase Admin SDK only if it hasn't been initialized yet.
+  if (!admin.apps.length) {
+    try {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+      });
+      console.log('[✅ FIREBASE ADMIN SDK] Initialized successfully.');
+    } catch (error) {
+      console.error('[🔥 FIREBASE INIT FAILED] Error initializing app:', error);
+    }
+  }
 }
 
 const adminAuth = admin.auth();
 const adminDb = admin.firestore();
 
 export { adminAuth, adminDb };
-
-/**
- * Verifies the user's ID token from the Authorization header.
- * @param {Headers} headers - The request headers.
- * @returns {Promise<admin.auth.DecodedIdToken | null>} The decoded token or null if invalid.
- */
-export const verifyIdToken = async (headers: Headers): Promise<admin.auth.DecodedIdToken | null> => {
-  const authorization = headers.get('Authorization');
-  if (authorization?.startsWith('Bearer ')) {
-    const idToken = authorization.split('Bearer ')[1];
-    try {
-      const decodedToken = await adminAuth.verifyIdToken(idToken);
-      return decodedToken;
-    } catch (error) {
-      console.error('Error verifying Firebase ID token:', error);
-      return null;
-    }
-  }
-  return null;
-};
