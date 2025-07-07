@@ -159,9 +159,15 @@ export const DashboardClient = () => {
                     <div className="flex-1">
                         <div className="flex items-center gap-x-2">
                             {set.isPublic ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" title="Public" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h8a2 2 0 002-2v-1a2 2 0 012-2h1.945M7.724 7.724l.001-.002M12 12h.01M16.276 7.724l-.001-.002M11 11a1 1 0 112 0 1 1 0 01-2 0z" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <title>Public</title>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h8a2 2 0 002-2v-1a2 2 0 012-2h1.945M7.724 7.724l.001-.002M12 12h.01M16.276 7.724l-.001-.002M11 11a1 1 0 112 0 1 1 0 01-2 0z" />
+                                </svg>
                             ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" title="Private" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <title>Private</title>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
                             )}
                             <h3 className="truncate text-sm font-medium text-gray-900 dark:text-white">{set.title}</h3>
                         </div>

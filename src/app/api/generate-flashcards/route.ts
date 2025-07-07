@@ -9,7 +9,7 @@ import { FLASHCARD_MAX, FLASHCARD_MIN, MODEL } from '@/lib/constants';
 export async function POST(req: Request) {
   try {
     // 1. Authenticate the user
-    const decodedToken = await verifyIdToken(request.headers);
+    const decodedToken = await verifyIdToken(req.headers);
     if (!decodedToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

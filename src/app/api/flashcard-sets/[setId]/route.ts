@@ -1,14 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 import { adminDb, verifyIdToken } from '@/lib/firebase/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 
-/**
- * GET: Retrieve a single flashcard set
- * @param {Request} request The incoming request object.
- * @param {{ params: { setId: string } }} context The route context, containing the dynamic parameter.
- * @returns {NextResponse} The response object.
- */
-export async function GET(request, context) {
+// GET: Retrieve a single flashcard set
+export async function GET(request: Request, context: any ) {
   try {
     const decodedToken = await verifyIdToken(request.headers);
     if (!decodedToken) {
@@ -17,6 +14,7 @@ export async function GET(request, context) {
     const userId = decodedToken.uid;
     const { setId } = context.params;
 
+    console.log('setId :>> ', setId);
     const setDocRef = adminDb.collection('flashcard-sets').doc(setId);
     const setDoc = await setDocRef.get();
 
@@ -33,18 +31,13 @@ export async function GET(request, context) {
 
     return NextResponse.json({ id: setDoc.id, ...setData }, { status: 200 });
   } catch (error) {
-    console.error(`Error fetching flashcard set:`, error);
+    console.error(`Error fetching flashcard set ${context.params.setId}:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-/**
- * PUT: Update an existing flashcard set
- * @param {Request} request The incoming request object.
- * @param {{ params: { setId: string } }} context The route context, containing the dynamic parameter.
- * @returns {NextResponse} The response object.
- */
-export async function PUT(request, context) {
+// PUT: Update an existing flashcard set
+export async function PUT(request: Request, context: any ) {
   try {
     const decodedToken = await verifyIdToken(request.headers);
     if (!decodedToken) {
@@ -66,6 +59,7 @@ export async function PUT(request, context) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { title, description, flashcards } = body;
     const updateData = {
       ...body,
       updatedAt: FieldValue.serverTimestamp(),
@@ -75,18 +69,13 @@ export async function PUT(request, context) {
 
     return NextResponse.json({ id: setId, ...updateData }, { status: 200 });
   } catch (error) {
-    console.error(`Error updating flashcard set:`, error);
+    console.error(`Error updating flashcard set ${context.params.setId}:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-/**
- * DELETE: Delete a flashcard set
- * @param {Request} request The incoming request object.
- * @param {{ params: { setId: string } }} context The route context, containing the dynamic parameter.
- * @returns {NextResponse} The response object.
- */
-export async function DELETE(request, context) {
+// DELETE: Delete a flashcard set
+export async function DELETE(request: Request, context: any ) {
   try {
     const decodedToken = await verifyIdToken(request.headers);
     if (!decodedToken) {
@@ -111,7 +100,7 @@ export async function DELETE(request, context) {
 
     return new NextResponse(null, { status: 204 }); // 204 No Content is standard for successful deletion
   } catch (error) {
-    console.error(`Error deleting flashcard set:`, error);
+    console.error(`Error deleting flashcard set ${context.params.setId}:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

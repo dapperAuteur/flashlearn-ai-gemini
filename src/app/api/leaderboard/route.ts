@@ -1,21 +1,33 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase/firebase-admin';
 import { subDays } from 'date-fns';
+import { IStudyAnalytics, IUserProfile } from '@/types';
 
-const formatUserName = (firstName: string, lastName: string) => {
+const formatUserName = (firstName?: string, lastName?: string) => {
     if (!firstName) return "Anonymous";
     const lastInitial = lastName ? `${lastName.charAt(0)}.` : '';
     return `${firstName} ${lastInitial}`;
 };
 
-const calculateStatsForPeriod = (analytics: any[], days: number) => {
+const calculateStatsForPeriod = (analytics: IStudyAnalytics[], days: number) => {
     const now = new Date();
     const cutoff = subDays(now, days);
-    const relevantHistory = analytics.flatMap(a => a.performanceHistory).filter((h: any) => h.date.toDate() >= cutoff);
+    const relevantHistory = analytics
+        .flatMap(a => a.performanceHistory || [])
+        .filter(h => {
+            if (!h.date) return false;
+            // Type guard to handle both Date and Firestore Timestamp objects
+            if ('toDate' in h.date) {
+                return h.date.toDate() >= cutoff; // It's a Timestamp
+            }
+            // It's a standard Date object
+            return h.date >= cutoff;
+        });
+
     const totalCorrect = relevantHistory.length;
-    const averageAccuracy = relevantHistory.length > 0 ? relevantHistory.reduce((sum: number, h: any) => sum + h.accuracy, 0) / relevantHistory.length : 0;
+    const averageAccuracy = relevantHistory.length > 0 
+        ? relevantHistory.reduce((sum, h) => sum + h.accuracy, 0) / relevantHistory.length 
+        : 0;
     return { totalCorrect, averageAccuracy };
 };
 
@@ -27,26 +39,49 @@ export async function GET(req: NextRequest) {
     const decodedToken = await adminAuth.verifyIdToken(token);
     const currentUserId = decodedToken.uid;
 
-    const usersSnapshot = await adminDb.collection('users').get();
-    const analyticsSnapshot = await adminDb.collection('studyAnalytics').get();
+    const [usersSnapshot, analyticsSnapshot] = await Promise.all([
+      adminDb.collection('users').get(),
+      adminDb.collection('studyAnalytics').get()
+    ]);
 
-    const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    const allAnalytics = analyticsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const allUsers: IUserProfile[] = usersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    } as IUserProfile));
+
+    // Performance Improvement: Group analytics by userId for O(1) lookup.
+    const analyticsByUser = new Map<string, IStudyAnalytics[]>();
+    analyticsSnapshot.docs.forEach(doc => {
+      const analytic = { id: doc.id, ...doc.data() } as IStudyAnalytics;
+      if (analytic.userId) {
+        const userAnalytics = analyticsByUser.get(analytic.userId) || [];
+        userAnalytics.push(analytic);
+        analyticsByUser.set(analytic.userId, userAnalytics);
+      }
+    });
 
     const userData = allUsers.map(user => {
-        const userAnalytics = allAnalytics.filter(a => a.userId === user.id);
-        const overallCorrect = userAnalytics.reduce((sum, set) => sum + set.cardPerformance.reduce((s: any, p: any) => s + p.correctCount, 0), 0);
-        const overallAccuracy = userAnalytics.length > 0 ? userAnalytics.reduce((sum, set) => sum + set.setPerformance.averageScore, 0) / userAnalytics.length : 0;
-        const totalTimeStudied = userAnalytics.reduce((sum, set) => sum + set.setPerformance.totalTimeStudied, 0);
+        const userAnalytics = analyticsByUser.get(user.id!) || [];
+
+        const overallCorrect = userAnalytics.reduce((sum, set) =>
+            sum + (set.cardPerformance || []).reduce((s, p) => s + p.correctCount, 0), 0);
+
+        const totalTimeStudied = userAnalytics.reduce((sum, set) =>
+            sum + (set.setPerformance?.totalTimeStudied || 0), 0);
+
+        const setsWithScores = userAnalytics.filter(set => typeof set.setPerformance?.averageScore === 'number');
+        const overallAccuracy = setsWithScores.length > 0
+            ? setsWithScores.reduce((sum, set) => sum + set.setPerformance.averageScore, 0) / setsWithScores.length
+            : 0;
 
         return {
-            userId: user.id,
+            userId: user.id!,
             name: formatUserName(user.firstName, user.lastName),
             image: user.image,
             daily: calculateStatsForPeriod(userAnalytics, 1),
             weekly: calculateStatsForPeriod(userAnalytics, 7),
             monthly: calculateStatsForPeriod(userAnalytics, 30),
-            overall: { totalCorrect, averageAccuracy, totalTimeStudied },
+            overall: { totalCorrect: overallCorrect, averageAccuracy: overallAccuracy, totalTimeStudied },
         };
     });
 
@@ -59,8 +94,9 @@ export async function GET(req: NextRequest) {
         });
         const top10 = sorted.slice(0, 10).map((u, i) => ({ ...u, rank: i + 1 }));
         const currentUserRank = sorted.findIndex(u => u.userId === currentUserId) + 1;
-        const currentUserData = { ...userData.find(u => u.userId === currentUserId), rank: currentUserRank };
-        return { top10, currentUser: currentUserData };
+        const foundUser = userData.find(u => u.userId === currentUserId);
+        const currentUser = foundUser ? { ...foundUser, rank: currentUserRank > 0 ? currentUserRank : undefined } : null;
+        return { top10, currentUser };
     };
 
     const leaderboards = {

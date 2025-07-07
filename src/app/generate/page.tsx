@@ -32,7 +32,7 @@ export default function GeneratePage() {
 
   // Protect the route
   if (!user) {
-    redirect('/auth/signin?callbackUrl=/generate');
+    router.push('/auth/signin?callbackUrl=/generate');
   }
 
   if (user) {
