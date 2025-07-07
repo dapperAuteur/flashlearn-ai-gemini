@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { IStudyAnalytics } from '@/models/StudyAnalytics';
+import { IStudyAnalytics } from '@/types';
 
 export default function AnalyticsDashboard() {
   const [analyticsData, setAnalyticsData] = useState<IStudyAnalytics[]>([]);
