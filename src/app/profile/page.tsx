@@ -6,7 +6,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import Link from 'next/link';
 import Image from 'next/image';
 
-// Define a type for the detailed user data we fetch from our API
+// Define a type for the detailed user data we fetch from our API.
 interface UserProfileData {
     firstName: string;
     lastName: string;
