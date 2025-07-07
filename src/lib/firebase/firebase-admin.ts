@@ -5,6 +5,17 @@ import * as admin from 'firebase-admin';
 console.log("[DEBUG] typeof FIREBASE_SERVICE_ACCOUNT_KEY:", typeof process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
 console.log("[DEBUG] FIREBASE_SERVICE_ACCOUNT_KEY starts with:", process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.slice(0, 50));
 
+try {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!raw) throw new Error("Missing FIREBASE_SERVICE_ACCOUNT_KEY");
+  const parsed = JSON.parse(raw);
+  if (!parsed.project_id) throw new Error("Missing project_id in service account");
+  console.log("[✅ FIREBASE SETUP OK]");
+} catch (e) {
+  console.error("[🔥 FIREBASE INIT FAILED]", e);
+}
+
+
 
 // This service account key is a secret and should be stored securely
 // in your environment variables. It should NOT be exposed to the client.
