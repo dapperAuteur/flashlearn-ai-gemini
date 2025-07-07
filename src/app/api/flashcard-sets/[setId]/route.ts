@@ -75,14 +75,14 @@ export async function PUT(request: Request, context: any ) {
 }
 
 // DELETE: Delete a flashcard set
-export async function DELETE(request: Request, { params }: { params: { setId: string } }) {
+export async function DELETE(request: Request, context: any ) {
   try {
     const decodedToken = await verifyIdToken(request.headers);
     if (!decodedToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const userId = decodedToken.uid;
-    const { setId } = params;
+    const { setId } = context.params;
 
     const setDocRef = adminDb.collection('flashcard-sets').doc(setId);
     const setDoc = await setDocRef.get();
