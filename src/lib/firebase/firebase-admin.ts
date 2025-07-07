@@ -1,6 +1,7 @@
 // src/lib/firebase/firebase-admin.ts
 
 import * as admin from 'firebase-admin';
+import { DecodedIdToken } from 'firebase-admin/auth';
 
 // Construct the service account object from individual environment variables.
 // This is more reliable than parsing a single JSON string.
@@ -33,5 +34,26 @@ if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.
 
 const adminAuth = admin.auth();
 const adminDb = admin.firestore();
+
+/**
+ * Verifies the user's ID token from the Authorization header of a request.
+ * @param {Headers} headers - The request headers object.
+ * @returns {Promise<DecodedIdToken | null>} The decoded token payload or null if invalid.
+ */
+export const verifyIdToken = async (headers: Headers): Promise<DecodedIdToken | null> => {
+  const authorization = headers.get('Authorization');
+  if (authorization?.startsWith('Bearer ')) {
+    const idToken = authorization.split('Bearer ')[1];
+    try {
+      const decodedToken = await adminAuth.verifyIdToken(idToken);
+      return decodedToken;
+    } catch (error) {
+      console.error('Error verifying Firebase ID token:', error);
+      return null;
+    }
+  }
+  return null;
+};
+
 
 export { adminAuth, adminDb };
