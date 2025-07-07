@@ -2,6 +2,10 @@
 
 import * as admin from 'firebase-admin';
 
+console.log("[DEBUG] typeof FIREBASE_SERVICE_ACCOUNT_KEY:", typeof process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+console.log("[DEBUG] FIREBASE_SERVICE_ACCOUNT_KEY starts with:", process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.slice(0, 50));
+
+
 // This service account key is a secret and should be stored securely
 // in your environment variables. It should NOT be exposed to the client.
 const serviceAccount = {
