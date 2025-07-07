@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { adminDb, adminAuth, verifyIdToken } from '@/lib/firebase/firebase-admin';
 
 // GET: Fetch the leaderboard for a specific flashcard set
-export async function GET(request: Request, { params }: { params: { setId: string } }) {
+export async function GET(request: Request, context: any ) {
   try {
     // While leaderboards can be public, we'll protect the route to prevent abuse.
     const decodedToken = await verifyIdToken(request.headers);
@@ -10,7 +11,7 @@ export async function GET(request: Request, { params }: { params: { setId: strin
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const { setId } = params;
+    const { setId } = context.params;
 
     // 1. Query analytics for the given set, ordering by score.
     const analyticsSnapshot = await adminDb
